@@ -1,0 +1,8 @@
+# BLE communication
+bleak>=0.21.0
+
+# Async web framework for REST/WebSocket
+aiohttp>=3.9.0
+
+# HRV computation (optional, can use pure numpy)
+numpy>=1.24.0
