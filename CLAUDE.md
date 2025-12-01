@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** 1 - Biosignal Pipeline Complete
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-11-30_phase_1_biosignal_pipeline.md`
-**Commit:** (see git log)
-**Next Steps:** v0.2 - WebSocket streaming to Semantic Climate OR grounding/induction layer
+**Phase:** 1b - Phase Space Trajectory Refactor Complete
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-01_phase_1b_trajectory_refactor.md`
+**Commit:** (pending)
+**Next Steps:** v0.2 - WebSocket streaming to Semantic Climate OR grounding/induction layer OR tensegrity vectors (when data justifies)
 
 ---
 

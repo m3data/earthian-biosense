@@ -12,6 +12,7 @@ from ble.scanner import scan_for_polar_h10
 from ble.h10_client import H10Client
 from ble.parser import HeartRateData
 from processing.hrv import compute_hrv_metrics, HRVMetrics
+from processing.phase import PhaseTrajectory, PhaseDynamics
 
 
 class SessionLogger:
@@ -30,8 +31,18 @@ class SessionLogger:
         self.file_handle = open(self.session_file, 'w')
         return self.session_file
 
-    def log(self, timestamp: datetime, hr: int, rr_intervals: list[int], metrics: HRVMetrics | None):
-        """Log a data point to the session file."""
+    def log(
+        self,
+        timestamp: datetime,
+        hr: int,
+        rr_intervals: list[int],
+        metrics: HRVMetrics | None,
+        dynamics: PhaseDynamics | None = None
+    ):
+        """Log a data point to the session file.
+
+        Includes both scalar metrics (backward compat) and rich phase dynamics.
+        """
         if not self.file_handle:
             return
 
@@ -42,14 +53,27 @@ class SessionLogger:
         }
 
         if metrics:
-            record.update({
+            record["metrics"] = {
                 "amp": metrics.amplitude,
                 "coh": round(metrics.coherence, 3),
                 "coh_label": metrics.coherence_label,
                 "breath": round(metrics.breath_rate, 1) if metrics.breath_rate else None,
+                "volatility": round(metrics.rr_volatility, 4),
+                # Keep flat mode fields for backward compat
                 "mode": metrics.mode_label,
                 "mode_score": round(metrics.mode_score, 3),
-            })
+            }
+
+        if dynamics:
+            record["phase"] = {
+                "position": [round(p, 4) for p in dynamics.position],
+                "velocity": [round(v, 4) for v in dynamics.velocity],
+                "velocity_mag": round(dynamics.velocity_magnitude, 4),
+                "curvature": round(dynamics.curvature, 4),
+                "stability": round(dynamics.stability, 4),
+                "history_signature": round(dynamics.history_signature, 4),
+                "phase_label": dynamics.phase_label,
+            }
 
         self.file_handle.write(json.dumps(record) + '\n')
         self.file_handle.flush()
@@ -72,9 +96,13 @@ class TerminalUI:
         self.rr_buffer: list[tuple[datetime, int]] = []  # (timestamp, rr_ms)
         self.start_time: datetime | None = None
         self.latest_metrics: HRVMetrics | None = None
+        self.latest_dynamics: PhaseDynamics | None = None
+        self.trajectory = PhaseTrajectory(window_size=30)  # ~30s of phase history
         self.logger = logger
         self.battery_level: int | None = None
         self.device_name: str | None = None
+        self.last_phase_tick: float = 0.0  # timestamp of last 1Hz phase computation
+        self.latest_hr: int = 0  # most recent HR for logging
 
     def clear_screen(self):
         sys.stdout.write('\033[2J\033[H')
@@ -112,6 +140,7 @@ class TerminalUI:
             return "  Waiting for data..."
 
         m = self.latest_metrics
+        d = self.latest_dynamics
         lines = []
 
         # AMP line with bar
@@ -123,8 +152,12 @@ class TerminalUI:
         coh_bar = self.format_dot_bar(m.coherence)
         lines.append(f"  COH:  {m.coherence:.2f}  {coh_bar}          {m.coherence_label}")
 
-        # MODE line
-        lines.append(f"  MODE (proto): {m.mode_label} ({m.mode_score:.2f})")
+        # Phase dynamics line (if available)
+        if d:
+            stability_bar = self.format_dot_bar(d.stability, width=5)
+            lines.append(f"  PHASE: {d.phase_label:<22} stab:{stability_bar} curv:{d.curvature:.2f}")
+        else:
+            lines.append(f"  MODE (proto): {m.mode_label} ({m.mode_score:.2f})")
 
         return '\n'.join(lines)
 
@@ -174,6 +207,7 @@ class TerminalUI:
 
         elapsed = (timestamp - self.start_time).total_seconds()
         self.hr_history.append(data.heart_rate)
+        self.latest_hr = data.heart_rate
 
         # Add new RR intervals to buffer with timestamps
         for rr in data.rr_intervals:
@@ -187,18 +221,36 @@ class TerminalUI:
         if len(self.hr_history) > 60:
             self.hr_history = self.hr_history[-60:]
 
-        # Compute HRV metrics
+        # Compute HRV metrics (every packet, for UI responsiveness)
         rr_values = [rr for _, rr in self.rr_buffer]
         self.latest_metrics = compute_hrv_metrics(rr_values)
 
-        # Log to session file
-        if self.logger:
-            self.logger.log(timestamp, data.heart_rate, data.rr_intervals, self.latest_metrics)
+        # 1Hz phase computation and logging
+        # Only compute phase dynamics and log once per second
+        current_time = timestamp.timestamp()
+        if current_time - self.last_phase_tick >= 1.0:
+            self.last_phase_tick = current_time
+
+            # Compute phase dynamics from trajectory
+            self.latest_dynamics = self.trajectory.append(
+                self.latest_metrics,
+                timestamp=current_time
+            )
+
+            # Log to session file at 1Hz
+            if self.logger:
+                self.logger.log(
+                    timestamp,
+                    self.latest_hr,
+                    rr_values[-3:] if len(rr_values) >= 3 else rr_values,  # recent RRi
+                    self.latest_metrics,
+                    self.latest_dynamics
+                )
 
         # Calculate stats
         avg_hr = sum(self.hr_history) / len(self.hr_history) if self.hr_history else 0
 
-        # Redraw screen
+        # Redraw screen (every packet for smooth UI)
         self.clear_screen()
         print("")
         print(self.format_header(elapsed, data.heart_rate, avg_hr, data.sensor_contact))
@@ -229,7 +281,15 @@ class TerminalUI:
             print(f"  AMP: {m.amplitude}ms  COH: {m.coherence:.2f} {m.coherence_label}")
             if m.breath_rate:
                 print(f"  BREATH: ~{m.breath_rate:.1f} /min")
-            print(f"  MODE (proto): {m.mode_label} ({m.mode_score:.2f})")
+            print(f"  MODE (scalar): {m.mode_label} ({m.mode_score:.2f})")
+        if self.latest_dynamics:
+            d = self.latest_dynamics
+            print("-" * 60)
+            print("  Phase Dynamics")
+            print(f"  Position: coh={d.position[0]:.2f} breath={d.position[1]:.2f} amp={d.position[2]:.2f}")
+            print(f"  Velocity mag: {d.velocity_magnitude:.3f}  Curvature: {d.curvature:.3f}")
+            print(f"  Stability: {d.stability:.2f}  History: {d.history_signature:.2f}")
+            print(f"  Phase: {d.phase_label}")
         print("=" * 60 + "\n")
 
 
