@@ -13,6 +13,7 @@ from ble.h10_client import H10Client
 from ble.parser import HeartRateData
 from processing.hrv import compute_hrv_metrics, HRVMetrics
 from processing.phase import PhaseTrajectory, PhaseDynamics
+from api.websocket_server import WebSocketServer, SemioticMarker, FieldEvent
 
 
 class SessionLogger:
@@ -23,6 +24,8 @@ class SessionLogger:
         self.session_dir.mkdir(exist_ok=True)
         self.session_file: Path | None = None
         self.file_handle = None
+        self.pending_semiotic: SemioticMarker | None = None
+        self.pending_field_event: FieldEvent | None = None
 
     def start_session(self) -> Path:
         """Start a new session log file."""
@@ -75,8 +78,34 @@ class SessionLogger:
                 "phase_label": dynamics.phase_label,
             }
 
+        # Add semiotic marker if received from Semantic Climate
+        if self.pending_semiotic:
+            record["semiotic"] = {
+                "curvature_delta": self.pending_semiotic.curvature_delta,
+                "entropy_delta": self.pending_semiotic.entropy_delta,
+                "coupling_psi": self.pending_semiotic.coupling_psi,
+                "label": self.pending_semiotic.label
+            }
+            self.pending_semiotic = None  # Clear after logging
+
+        # Add field event if received
+        if self.pending_field_event:
+            record["field_event"] = {
+                "event": self.pending_field_event.event,
+                "note": self.pending_field_event.note
+            }
+            self.pending_field_event = None  # Clear after logging
+
         self.file_handle.write(json.dumps(record) + '\n')
         self.file_handle.flush()
+
+    def add_semiotic_marker(self, marker: SemioticMarker):
+        """Store semiotic marker from Semantic Climate for next log entry."""
+        self.pending_semiotic = marker
+
+    def add_field_event(self, event: FieldEvent):
+        """Store field event for next log entry."""
+        self.pending_field_event = event
 
     def close(self):
         """Close the session file."""
@@ -91,7 +120,7 @@ class TerminalUI:
     # ~20 seconds of RRi at ~60 BPM = ~20 intervals
     RR_WINDOW_SIZE = 20
 
-    def __init__(self, logger: SessionLogger | None = None):
+    def __init__(self, logger: SessionLogger | None = None, ws_server: WebSocketServer | None = None):
         self.hr_history: list[int] = []
         self.rr_buffer: list[tuple[datetime, int]] = []  # (timestamp, rr_ms)
         self.start_time: datetime | None = None
@@ -99,6 +128,7 @@ class TerminalUI:
         self.latest_dynamics: PhaseDynamics | None = None
         self.trajectory = PhaseTrajectory(window_size=30)  # ~30s of phase history
         self.logger = logger
+        self.ws_server = ws_server
         self.battery_level: int | None = None
         self.device_name: str | None = None
         self.last_phase_tick: float = 0.0  # timestamp of last 1Hz phase computation
@@ -247,6 +277,20 @@ class TerminalUI:
                     self.latest_dynamics
                 )
 
+            # Broadcast phase dynamics via WebSocket at 1Hz
+            if self.ws_server and self.latest_dynamics:
+                asyncio.create_task(self.ws_server.broadcast_phase(
+                    timestamp=timestamp,
+                    hr=self.latest_hr,
+                    position=self.latest_dynamics.position,
+                    velocity=self.latest_dynamics.velocity,
+                    velocity_mag=self.latest_dynamics.velocity_magnitude,
+                    curvature=self.latest_dynamics.curvature,
+                    stability=self.latest_dynamics.stability,
+                    coherence=self.latest_metrics.coherence,
+                    phase_label=self.latest_dynamics.phase_label
+                ))
+
         # Calculate stats
         avg_hr = sum(self.hr_history) / len(self.hr_history) if self.hr_history else 0
 
@@ -295,6 +339,11 @@ class TerminalUI:
 
 async def main():
     print("\nEarthianBioSense v0.1")
+
+    # Start WebSocket server
+    ws_server = WebSocketServer(host="localhost", port=8765)
+    await ws_server.start()
+
     print("Scanning for Polar H10...\n")
 
     # Scan for devices
@@ -306,6 +355,7 @@ async def main():
         print("  - H10 strap is worn (requires skin contact to activate)")
         print("  - Bluetooth is enabled")
         print("  - Device is not connected to another app")
+        await ws_server.stop()
         return
 
     # Use first device found
@@ -317,8 +367,12 @@ async def main():
     session_file = logger.start_session()
     print(f"Logging to: {session_file}")
 
+    # Wire up WebSocket callbacks for semiotic markers
+    ws_server.on_semiotic_marker = logger.add_semiotic_marker
+    ws_server.on_field_event = logger.add_field_event
+
     client = H10Client(device)
-    ui = TerminalUI(logger=logger)
+    ui = TerminalUI(logger=logger, ws_server=ws_server)
 
     # Register data callback
     client.on_data(ui.on_data)
@@ -328,14 +382,23 @@ async def main():
     if not await client.connect():
         print("Failed to connect")
         logger.close()
+        await ws_server.stop()
         return
 
-    # Store device info for display
+    # Store device info for display and WebSocket
     ui.set_device_info(client)
+    ws_server.set_device_info(
+        name=client.status.device_name,
+        connected=True,
+        battery=client.status.battery_level
+    )
 
     print(f"Connected! Battery: {client.status.battery_level}%")
     print("Starting stream...\n")
     await asyncio.sleep(1)
+
+    # Broadcast device status to connected clients
+    await ws_server.broadcast_device_status()
 
     # Start streaming
     await client.start_streaming()
@@ -347,8 +410,15 @@ async def main():
     except KeyboardInterrupt:
         pass
     finally:
+        # Calculate session duration
+        if ui.start_time:
+            duration_sec = int((datetime.now() - ui.start_time).total_seconds())
+            sample_count = len(ui.hr_history)
+            await ws_server.broadcast_session_end(duration_sec, sample_count)
+
         await client.disconnect()
         logger.close()
+        await ws_server.stop()
         ui.print_summary(client)
         print(f"  Session saved: {session_file}")
         print("")
