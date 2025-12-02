@@ -16,7 +16,7 @@ Connects to Polar H10 heart rate monitors via BLE, computes HRV metrics, and tra
 ## Installation
 
 ```bash
-git clone https://github.com/EarthianLab/Earthian-BioSense.git
+git clone https://github.com/m3data/earthian-biosense.git
 cd Earthian-BioSense
 python -m venv venv
 source venv/bin/activate
@@ -120,7 +120,7 @@ JSONL Export + Terminal UI
 
 ## License
 
-MIT
+All rights reserved. This is private research software. No license is granted for use, modification, or distribution without explicit written permission from the author.
 
 ---
 
