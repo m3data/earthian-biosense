@@ -5,10 +5,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** 1b - Phase Space Trajectory Refactor Complete
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-01_phase_1b_trajectory_refactor.md`
-**Commit:** (pending)
-**Next Steps:** v0.2 - WebSocket streaming to Semantic Climate OR grounding/induction layer OR tensegrity vectors (when data justifies)
+**Phase:** 1d - Session Replay Visualization (In Progress)
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-01_phase_1c_websocket_api_and_sessions.md`
+**Commit:** da0ae97 (uncommitted viz work in progress)
+**Next Steps:** Complete replay instrument with design principles, first coupled EBS+SC session
+
+---
+## Active Design Context
+
+The visualization work is guided by `viz/DESIGN_PRINCIPLES.md` — a living document that establishes the ethical and phenomenological commitments for session replay.
+
+**Core principle:** *Induce somatic recognition, prevent identity fixation.*
+
+Key constraints:
+- Phenomenological primacy (felt sense before data)
+- Mutual constraint frame (narrative and measurement co-create meaning)
+- Non-objectifying visualization (no evaluative encoding)
+- Earth-warm palette (grounding, not performance)
+- Participant agency (annotation as co-creation)
+
+These principles are not technical specifications but ethical commitments. They will evolve as we learn from actual sessions and participants.
 
 ---
 
@@ -169,8 +185,38 @@ To ensure continuity across Claude Code sessions:
 - Any important notes for continuation
 ```
 
-## Design Principles
+## Technical Design Principles
 
 - **Local-first privacy** - No external sync by default, LAN-first
 - **Separation of concerns** - Device, processing, API, storage isolated
 - **Extendability** - Architecture supports adding EEG, EM, breath sensors
+
+## Visualization Architecture
+
+The `viz/` directory contains the session replay instrument:
+
+```
+viz/
+├── DESIGN_PRINCIPLES.md   # Ethical & phenomenological commitments (READ FIRST)
+├── README.md              # Technical architecture
+├── replay.html            # Current prototype (monolith, being refactored)
+├── css/
+│   └── replay.css         # Styles
+└── js/
+    ├── config.js          # Central configuration
+    ├── session.js         # Session data management
+    ├── playback.js        # Timeline control
+    ├── transforms.js      # Coordinate mappings
+    └── smoothing.js       # Curve interpolation
+```
+
+**Important:** Before modifying visualization code, read `viz/DESIGN_PRINCIPLES.md`. Technical decisions must align with phenomenological commitments.
+
+## Reflections & Context
+
+The `context/` directory contains philosophical and design reflections:
+
+- `reflecting-on-viz-cuts.md` - Reflections on the ontological cuts made by visualization choices
+- `eecp-draft-spec-v.0.1.md` - EECP ecosystem specification
+
+These documents inform implementation but are not specifications. They are part of the inquiry.
