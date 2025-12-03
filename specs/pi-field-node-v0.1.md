@@ -3,12 +3,15 @@
 **Status:** Draft
 **Purpose:** Portable biosignal acquisition for field sessions (garden, ritual, pre-session grounding)
 **Context:** PhD research infrastructure, EECP protocol support
+**Version:** 0.1 (initial prototype)
+**Authors:** Mathew Mark Mytka + Claude Code (Kairos) + ChatGPT (Zorya)
 
 ---
 
 ## Hardware
 
 ### Core
+
 | Component | Model | Notes |
 |-----------|-------|-------|
 | SBC | Raspberry Pi Zero 2 W | BLE built-in, quad-core, ~$15 |
@@ -17,6 +20,7 @@
 | Enclosure | 3D printed or Hammond 1551 series | Weatherproof optional |
 
 ### Optional Additions
+
 | Component | Purpose |
 |-----------|---------|
 | 0.96" OLED (SSD1306) | Status display (HR, connection, battery) |
@@ -26,6 +30,7 @@
 | GPS module (NEO-6M) | Location tagging for field sessions |
 
 ### Future Expansion (v0.2+)
+
 | Component | Purpose |
 |-----------|---------|
 | EM sensor array | Electromagnetic field sensing |
@@ -33,16 +38,63 @@
 | EEG headband interface | Multi-modal coherence |
 | LoRa module | Mesh networking for distributed sensing |
 
+### Critical Enhancements (v0.1 → v0.2 readiness)
+
+The following considerations strengthen the Pi Field Node from a simple biosignal logger into a relational field research instrument.
+
+#### 1. Multi-Node Clock Synchronization
+
+Accurate dyadic and multi-organism coupling requires aligned timestamps (±5 ms).
+- Add support for `chrony` with optional PPS (pulse-per-second) input.
+- Implement BLE timestamp correction for Polar H10 packets.
+- Provide fallback NTP sync when WiFi is available.
+- All nodes should maintain a shared time base to enable phase-space reconstruction.
+
+#### 2. Local Phase-Space Feature Extraction
+
+Pi nodes should compute reduced features in real-time for robustness and future mesh-mode:
+- Instantaneous HR and ΔRRi
+- Volatility estimate
+- Micro-coherence approximations
+- 3D phase-space parameters (velocity, curvature, stability)
+These features are saved alongside raw RRi for downstream attractor modeling.
+
+#### 3. Mesh Networking (LoRa-ready Architecture)
+
+Add optional support for low-bandwidth reduced-feature broadcasting:
+- LoRa module can transmit reduced packet summaries
+- Central “Field Hub” reconstructs intersubjective attractor dynamics
+- Works offline and in nature-based settings
+This enables multi-node relational field sensing in gardens, rituals, or distributed circles.
+
+#### 4. Field Event Markers
+
+Add a simple GPIO hook or software endpoint for marking significant moments:
+- gesture, chant, breath shift
+- relational turn-taking
+- creative-play transition
+Field events are saved as annotation frames within the session and later aligned with physiological signals.
+
+#### 5. Modular Sensor Expansion
+
+Prepare the hardware abstraction layer for:
+- GSR sensor breakout
+- Plant bioelectric probes
+- EEG headband interface (BLE-based)
+Each module should register as a data source using a consistent timestamped JSONL format.
+
 ---
 
 ## Software
 
 ### Operating System
+
 - Raspberry Pi OS Lite (headless)
 - Auto-login, auto-start on boot
 - Read-only filesystem option (prevent SD corruption on power loss)
 
 ### Python Environment
+
 ```bash
 # Same dependencies as main codebase
 bleak>=0.21.0
@@ -52,6 +104,7 @@ aiohttp>=3.9.0  # for future WebSocket sync
 ### Application Modes
 
 #### 1. Headless Field Mode (default)
+
 ```
 Boot → Scan for H10 → Connect → Stream → Log to SD
                 ↓
@@ -67,6 +120,7 @@ Boot → Scan for H10 → Connect → Stream → Log to SD
 - Session files: `/home/pi/sessions/YYYY-MM-DD_HHMMSS.jsonl`
 
 #### 2. Display Mode (with OLED)
+
 ```
 ┌────────────────┐
 │ HR: 72  🔋 84% │
@@ -77,11 +131,13 @@ Boot → Scan for H10 → Connect → Stream → Log to SD
 ```
 
 #### 3. Sync Mode (when WiFi available)
+
 - Detect home network
 - Push new sessions to configured endpoint (NAS, server, or cloud)
 - Optional: real-time WebSocket bridge to office machine
 
 ### Configuration
+
 ```yaml
 # /home/pi/ebs-config.yaml
 device:
@@ -109,11 +165,13 @@ hardware:
 ## Physical Design
 
 ### Wearable Option
+
 - Belt clip or armband mount
 - Weight target: <100g with battery
 - Single button: short press = status, long press = shutdown
 
 ### Field Station Option
+
 - Weatherproof enclosure
 - Solar trickle charge
 - Placed near session area (tree, garden bench)
@@ -124,6 +182,7 @@ hardware:
 ## Session Workflow
 
 ### Pre-Session Grounding Protocol
+
 ```
 1. Don H10 strap
 2. Power on Pi node (or it's already running)
@@ -134,8 +193,18 @@ hardware:
 7. Office session begins with pre-session baseline available
 ```
 
+### Multi-Node Workflow (dyad, triad, or human–plant)
+
+1. Power on all Pi nodes (human, plant, or ambient nodes).
+2. Nodes synchronize clocks on boot or via BLE correction.
+3. Reduced features are streamed or logged locally.
+4. Field events (buttons or app-side triggers) annotate shared moments.
+5. Upon returning to WiFi, nodes sync their logs for coupling analysis.
+
 ### Data Continuity
+
 Field sessions produce identical JSONL format to office sessions:
+
 ```json
 {
   "ts": "2025-12-01T07:23:14.000000",
@@ -156,23 +225,27 @@ Field sessions produce identical JSONL format to office sessions:
 ## Implementation Phases
 
 ### Phase A: Basic Field Logging
+
 - [ ] Headless Pi setup with auto-start
 - [ ] LED status indicators
 - [ ] Button for clean shutdown
 - [ ] Test 2-hour garden session
 
 ### Phase B: Sync & Display
+
 - [ ] WiFi auto-sync on return
 - [ ] OLED status display
 - [ ] Battery monitoring with low-power warnings
 
 ### Phase C: Research Integration
+
 - [ ] GPS tagging
 - [ ] Session type annotations
 - [ ] Integration with EECP Field Journal
 - [ ] Multi-node support (if distributed sensing needed)
 
 ### Phase D: Expanded Sensing (v0.2+)
+
 - [ ] EM sensor integration
 - [ ] Direct breath sensing
 - [ ] EEG interface exploration
