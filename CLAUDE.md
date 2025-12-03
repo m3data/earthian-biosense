@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Status Header
 
 **Phase:** 1d - Session Replay Visualization (In Progress)
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-01_phase_1c_websocket_api_and_sessions.md`
-**Commit:** da0ae97 (uncommitted viz work in progress)
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-03_phase_1d_session_replay_viz.md`
+**Commit:** 2b2cef6
 **Next Steps:** Complete replay instrument with design principles, first coupled EBS+SC session
 
 ---
