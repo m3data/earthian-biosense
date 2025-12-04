@@ -17,7 +17,7 @@ export const CONFIG = {
   // Trail rendering
   trail: {
     length: 80,           // Samples to show — temporal window
-    subdivisions: 4,      // Catmull-Rom interpolation points
+    subdivisions: 3,      // Catmull-Rom interpolation points between samples
     smoothingTension: 0.5 // Spline tension (0 = sharp, 1 = loose)
   },
 
