@@ -50,25 +50,28 @@ export const CONFIG = {
 };
 
 /**
- * Mode Color Palette — Earth-Warm
+ * Mode Color Palette — Earth-Warm (Extended Range)
  *
  * Maps autonomic mode labels to RGB values.
  *
  * Design principle: Colors differentiate without ranking.
  * No state is "better" — just different textures of becoming.
- * Warm earth tones invite settling rather than striving.
  *
- * Palette: ochres, ambers, terracottas, clay, sandstone
+ * Wider hue range for legibility while staying grounded:
+ * - Vigilance: warm oranges/terracotta
+ * - Transitional: muted rose/mauve
+ * - Settling: sage/moss greens
+ * - Coherence: soft teals/slate blues
  */
 export const MODE_COLORS = {
-  'heightened vigilance': [190, 120, 90],   // terracotta — active, present
-  'subtle vigilance': [175, 145, 110],      // warm sand — attending
-  'transitional': [165, 135, 115],          // clay — moving between
-  'settling': [155, 140, 120],              // soft umber — easing
-  'emerging coherence': [180, 155, 125],    // amber — gathering
-  'coherent presence': [170, 150, 130],     // sandstone — dwelling
-  'coherent': [170, 150, 130],              // sandstone (alias)
-  'deep coherence': [160, 145, 125]         // deep ochre — resting
+  'heightened vigilance': [205, 110, 70],   // burnt orange — active, alert
+  'subtle vigilance': [195, 140, 95],       // amber ochre — attending
+  'transitional': [175, 130, 140],          // dusty rose — moving between
+  'settling': [130, 155, 130],              // sage moss — easing down
+  'emerging coherence': [115, 155, 155],    // soft teal — gathering
+  'coherent presence': [100, 140, 160],     // slate blue — dwelling
+  'coherent': [100, 140, 160],              // slate blue (alias)
+  'deep coherence': [95, 130, 150]          // deep slate — resting
 };
 
 /**

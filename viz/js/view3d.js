@@ -174,10 +174,10 @@ function drawDwellDensity(p, state) {
         let z = p.map(zi, 0, DENSITY_GRID, -100, 100);
 
         let cohFactor = xi / DENSITY_GRID;
-        // Earth-warm palette: terracotta → amber as coherence increases
+        // Extended palette: amber ochre → soft teal as coherence increases
         let col = lerpColor(
-          [190, 130, 100],  // warm clay (low coherence)
-          [180, 155, 120],  // soft amber (high coherence)
+          [195, 140, 95],   // amber ochre (low coherence)
+          [115, 155, 155],  // soft teal (high coherence)
           cohFactor
         );
 

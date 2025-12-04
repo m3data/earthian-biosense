@@ -5,9 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Session Replay — EarthianBioSense</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <link rel="stylesheet" href="css/replay.css">
 </head>
 <body>
+  <!-- Reference Sidebar -->
+  <div id="sidebar" class="closed">
+    <button id="sidebar-toggle"><i class="ph ph-book-open"></i></button>
+    <div id="sidebar-content">
+      <h2>Reference Guide</h2>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-person-arms-spread"></i>Autonomic Modes</h3>
+        <p class="sidebar-intro">The system infers autonomic state from HRV patterns. These are not diagnoses — just textures of how the nervous system is moving.</p>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="heightened"></span>
+          <div>
+            <strong>Heightened Vigilance</strong>
+            <p>Active, alert state. Sympathetic activation — the system is mobilized and outward-facing.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="subtle"></span>
+          <div>
+            <strong>Subtle Vigilance</strong>
+            <p>Attending, watchful. A gentler alertness — present but not mobilized.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="transitional"></span>
+          <div>
+            <strong>Transitional</strong>
+            <p>Moving between states. The system is reorganizing, neither here nor there.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="settling"></span>
+          <div>
+            <strong>Settling</strong>
+            <p>Easing down. Parasympathetic influence increasing — the system is beginning to rest.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="emerging"></span>
+          <div>
+            <strong>Emerging Coherence</strong>
+            <p>Gathering into pattern. Breath and heart beginning to entrain — coherence is forming.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="coherent"></span>
+          <div>
+            <strong>Coherent Presence</strong>
+            <p>Dwelling in pattern. Breath-heart coupling established — the system is in a stable, integrated state.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-path"></i>Phase Labels</h3>
+        <p class="sidebar-intro">Phases describe the trajectory — where the system is in its journey through autonomic space.</p>
+
+        <div class="phase-item">
+          <strong>Inflection</strong>
+          <p>A turning point. The system is changing direction — either entering or leaving a pattern.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Dwelling</strong>
+          <p>Staying in place. The system has found a region and is resting there.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Flowing</strong>
+          <p>Moving with momentum. The system is in motion but with consistent direction.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Seeking</strong>
+          <p>Exploring. The system is moving without a clear attractor — searching for a new basin.</p>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-info"></i>About This View</h3>
+        <p>This visualization shows how your autonomic nervous system moved through a session. It is not a performance score or diagnostic tool.</p>
+        <p>The goal is <em>recognition</em> — "yes, that was me moving" — not evaluation.</p>
+        <p>Your felt sense of the session has equal weight to what the sensors measured. Both are partial views of the same becoming.</p>
+      </section>
+    </div>
+  </div>
+
   <h1>PHENOMENOLOGICAL REPLAY</h1>
 
   <div id="tabs">
@@ -23,6 +117,17 @@
 
   <div id="canvas-wrapper">
     <div id="canvas-container"></div>
+    <div id="info-panel">
+      <button id="info-toggle" class="info-toggle" aria-expanded="false"><i class="ph ph-info"></i></button>
+      <div id="info-content" class="info-content hidden">
+        <div class="info-title">Reading the trace</div>
+        <div class="info-item"><i class="ph ph-heart"></i><span><strong>Heart size</strong> — HRV amplitude (variability range)</span></div>
+        <div class="info-item"><i class="ph ph-heartbeat"></i><span><strong>Pulse rate</strong> — Current heart rate</span></div>
+        <div class="info-item"><i class="ph ph-wave-sine"></i><span><strong>Trail color</strong> — Autonomic mode</span></div>
+        <div class="info-item"><i class="ph ph-arrows-horizontal"></i><span><strong>Horizontal</strong> — Trajectory coherence</span></div>
+        <div class="info-item"><i class="ph ph-arrows-vertical"></i><span><strong>Vertical</strong> — Breath rhythm position</span></div>
+      </div>
+    </div>
     <div id="legend" class="hidden">
       <div class="legend-title">MODE</div>
       <div class="legend-item"><span class="swatch" data-mode="heightened"></span>heightened</div>
@@ -37,14 +142,17 @@
   <div id="view-hint"></div>
 
   <div id="controls">
-    <button id="play-btn">Play</button>
-    <button id="speed-05">0.5x</button>
-    <button id="speed-1" class="active">1x</button>
-    <button id="speed-2">2x</button>
-    <button id="speed-4">4x</button>
+    <button id="play-btn"><i class="ph ph-play"></i></button>
+    <span id="speed-controls" class="revealable hidden">
+      <button id="speed-05">0.5x</button>
+      <button id="speed-1" class="active">1x</button>
+      <button id="speed-2">2x</button>
+      <button id="speed-4">4x</button>
+    </span>
+    <button id="details-toggle" class="toggle-btn">Show details</button>
   </div>
 
-  <div id="timeline-container">
+  <div id="timeline-container" class="revealable hidden">
     <input type="range" id="timeline" min="0" max="100" value="0">
     <div id="time-display">
       <span id="time-current">00:00</span>
@@ -52,28 +160,50 @@
     </div>
   </div>
 
-  <div id="phase-label">— waiting for session —</div>
+  <div id="phase-label" class="revealable hidden">— waiting for session —</div>
 
-  <div id="metrics-panel">
+  <div id="metrics-panel" class="revealable hidden">
     <div class="metric">
-      <div class="metric-label">Heart Rate</div>
+      <div class="metric-label"><i class="ph ph-heartbeat"></i>Heart Rate</div>
       <div class="metric-value" id="m-hr">—</div>
       <div class="metric-sub">bpm</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Coherence</div>
+      <div class="metric-label"><i class="ph ph-wave-sine"></i>Coherence</div>
       <div class="metric-value" id="m-coh">—</div>
       <div class="metric-sub" id="m-coh-label">—</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Breath</div>
+      <div class="metric-label"><i class="ph ph-wind"></i>Breath</div>
       <div class="metric-value" id="m-breath">—</div>
       <div class="metric-sub">cycles/min</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Stability</div>
+      <div class="metric-label"><i class="ph ph-circle-dashed"></i>Stability</div>
       <div class="metric-value" id="m-stability">—</div>
       <div class="metric-sub" id="m-mode">—</div>
+    </div>
+  </div>
+
+  <div id="metrics-info" class="revealable hidden">
+    <button id="metrics-info-toggle"><i class="ph ph-question"></i>What do these mean?</button>
+    <div id="metrics-info-content" class="hidden">
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-heartbeat"></i>Heart Rate</strong>
+        <p>Beats per minute. Varies naturally with breath, activity, and autonomic state.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-wave-sine"></i>Coherence</strong>
+        <p>Trajectory integrity over time — how consistently the system maintains its pattern. Not "good" or "bad," just a measure of stability in the journey.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-wind"></i>Breath</strong>
+        <p>Estimated breathing rate derived from heart rate variability patterns. The heart speeds up on inhale, slows on exhale.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-circle-dashed"></i>Stability</strong>
+        <p>How settled the system is in its current region of phase space. Higher stability suggests dwelling; lower suggests movement or transition.</p>
+      </div>
     </div>
   </div>
 

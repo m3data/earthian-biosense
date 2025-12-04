@@ -4,7 +4,7 @@
  * Wires together all modules and manages application state.
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG, getModeColor } from './config.js';
 import { createSketch2D } from './view2d.js';
 import { createSketch3D, computeDwellDensity } from './view3d.js';
 
@@ -16,6 +16,7 @@ const state = {
   playbackSpeed: 1,
   lastFrameTime: 0,
   currentView: '2d',
+  detailsRevealed: false,
   p5Instance: null,
   dwellDensity: [],
 
@@ -45,7 +46,7 @@ function handlePlayback() {
         updateUI();
       } else {
         state.isPlaying = false;
-        document.getElementById('play-btn').textContent = 'Play';
+        document.getElementById('play-btn').innerHTML = '<i class="ph ph-play"></i>';
       }
       state.lastFrameTime = now;
     }
@@ -67,7 +68,13 @@ function updateUI() {
   document.getElementById('m-stability').textContent = sample.phase.stability ? sample.phase.stability.toFixed(2) : '—';
   document.getElementById('m-mode').textContent = sample.metrics.mode || '—';
 
-  document.getElementById('phase-label').textContent = sample.phase.phase_label || '—';
+  // Update phase label with mode-colored border
+  const phaseLabel = document.getElementById('phase-label');
+  phaseLabel.textContent = sample.phase.phase_label || '—';
+  const modeColor = getModeColor(sample.metrics.mode);
+  phaseLabel.style.borderColor = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+  phaseLabel.style.color = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+
   document.getElementById('timeline').value = (state.currentIndex / (state.sessionData.length - 1)) * 100;
 
   let startTime = new Date(state.sessionData[0].ts);
@@ -113,8 +120,99 @@ function initP5(mode) {
   }
 }
 
+// === Details Reveal ===
+function toggleDetails() {
+  state.detailsRevealed = !state.detailsRevealed;
+
+  const toggle = document.getElementById('details-toggle');
+  const revealables = document.querySelectorAll('.revealable');
+
+  if (state.detailsRevealed) {
+    toggle.textContent = 'Hide details';
+    toggle.classList.add('active');
+    revealables.forEach(el => {
+      el.classList.remove('hidden');
+      el.classList.add('revealed');
+    });
+  } else {
+    toggle.textContent = 'Show details';
+    toggle.classList.remove('active');
+    revealables.forEach(el => {
+      el.classList.add('hidden');
+      el.classList.remove('revealed');
+    });
+  }
+}
+
+// === Info Panel Toggle ===
+function setupInfoPanel() {
+  const toggle = document.getElementById('info-toggle');
+  const content = document.getElementById('info-content');
+
+  toggle.addEventListener('click', () => {
+    const isOpen = !content.classList.contains('hidden');
+    if (isOpen) {
+      content.classList.add('hidden');
+      toggle.classList.remove('active');
+      toggle.setAttribute('aria-expanded', 'false');
+    } else {
+      content.classList.remove('hidden');
+      toggle.classList.add('active');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  });
+}
+
+// === Metrics Info Toggle ===
+function setupMetricsInfo() {
+  const toggle = document.getElementById('metrics-info-toggle');
+  const content = document.getElementById('metrics-info-content');
+
+  toggle.addEventListener('click', () => {
+    const isOpen = !content.classList.contains('hidden');
+    if (isOpen) {
+      content.classList.add('hidden');
+      toggle.innerHTML = '<i class="ph ph-question"></i>What do these mean?';
+    } else {
+      content.classList.remove('hidden');
+      toggle.innerHTML = '<i class="ph ph-caret-up"></i>Hide explanations';
+    }
+  });
+}
+
+// === Sidebar Toggle ===
+function setupSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('sidebar-toggle');
+
+  toggle.addEventListener('click', () => {
+    const isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+      sidebar.classList.remove('open');
+      sidebar.classList.add('closed');
+      toggle.innerHTML = '<i class="ph ph-book-open"></i>';
+    } else {
+      sidebar.classList.remove('closed');
+      sidebar.classList.add('open');
+      toggle.innerHTML = '<i class="ph ph-x"></i>';
+    }
+  });
+}
+
 // === Event Handlers ===
 function setupEventHandlers() {
+  // Details toggle
+  document.getElementById('details-toggle').addEventListener('click', toggleDetails);
+
+  // Info panel
+  setupInfoPanel();
+
+  // Metrics info panel
+  setupMetricsInfo();
+
+  // Sidebar
+  setupSidebar();
+
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -140,7 +238,7 @@ function setupEventHandlers() {
     state.isPlaying = false;
     state.dwellDensity = computeDwellDensity(state.sessionData);
 
-    document.getElementById('play-btn').textContent = 'Play';
+    document.getElementById('play-btn').innerHTML = '<i class="ph ph-play"></i>';
     document.getElementById('session-name').textContent = file.name;
     document.getElementById('phase-label').textContent = '— ready —';
 
@@ -152,7 +250,7 @@ function setupEventHandlers() {
     if (state.sessionData.length === 0) return;
 
     state.isPlaying = !state.isPlaying;
-    document.getElementById('play-btn').textContent = state.isPlaying ? 'Pause' : 'Play';
+    document.getElementById('play-btn').innerHTML = state.isPlaying ? '<i class="ph ph-pause"></i>' : '<i class="ph ph-play"></i>';
     state.lastFrameTime = performance.now();
 
     if (state.currentIndex >= state.sessionData.length - 1) {

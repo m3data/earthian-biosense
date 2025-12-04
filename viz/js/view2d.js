@@ -162,6 +162,37 @@ function drawTrail(p, state) {
   }
 }
 
+/**
+ * Draw a heart shape centered at (0, 0)
+ * Scale determines the size
+ */
+function drawHeart(p, scale) {
+  p.beginShape();
+  // Heart curve using bezier points
+  p.vertex(0, -scale * 0.35);
+  p.bezierVertex(
+    -scale * 0.1, -scale * 0.6,
+    -scale * 0.5, -scale * 0.55,
+    -scale * 0.5, -scale * 0.2
+  );
+  p.bezierVertex(
+    -scale * 0.5, scale * 0.1,
+    -scale * 0.2, scale * 0.4,
+    0, scale * 0.55
+  );
+  p.bezierVertex(
+    scale * 0.2, scale * 0.4,
+    scale * 0.5, scale * 0.1,
+    scale * 0.5, -scale * 0.2
+  );
+  p.bezierVertex(
+    scale * 0.5, -scale * 0.55,
+    scale * 0.1, -scale * 0.6,
+    0, -scale * 0.35
+  );
+  p.endShape(p.CLOSE);
+}
+
 function drawCurrentPosition(p, state) {
   const { sessionData, currentIndex } = state;
   if (sessionData.length === 0) return;
@@ -171,35 +202,39 @@ function drawCurrentPosition(p, state) {
   let pos = sampleToCanvas(sample, p);
 
   let amp = sample.metrics.amp || 50;
-  let size = p.map(amp, 0, 300, 16, 45);
+  let baseSize = p.map(amp, 0, 300, 18, 50);
 
   let col = getModeColor(sample.metrics.mode);
   let stability = sample.phase.stability || 0.5;
 
-  // Glow layers
-  p.noStroke();
-  for (let r = size * 3; r > size; r -= 3) {
-    let alpha = p.map(r, size, size * 3, 80 * stability, 0);
-    p.fill(col[0], col[1], col[2], alpha);
-    p.ellipse(pos.x, pos.y, r, r);
-  }
-
-  // Core
-  p.fill(col[0], col[1], col[2], 255);
-  p.ellipse(pos.x, pos.y, size, size);
-
-  // Inner bright core
-  p.fill(255, 255, 255, 180);
-  p.ellipse(pos.x, pos.y, size * 0.35, size * 0.35);
-
-  // Pulse ring
+  // Pulse based on heart rate
   let hr = sample.hr || 75;
   let pulsePhase = (p.millis() / (60000 / hr)) % 1;
-  let pulseSize = size * (1 + Math.sin(pulsePhase * p.TWO_PI) * 0.08);
-  p.noFill();
-  p.stroke(255, 255, 255, 30);
-  p.strokeWeight(1);
-  p.ellipse(pos.x, pos.y, pulseSize * 1.5, pulseSize * 1.5);
+  // Heartbeat-like pulse: quick expansion, slower contraction
+  let pulseCurve = Math.pow(Math.sin(pulsePhase * p.PI), 0.5);
+  let size = baseSize * (1 + pulseCurve * 0.15);
+
+  p.push();
+  p.translate(pos.x, pos.y);
+
+  // Glow layers (circular, behind heart)
+  p.noStroke();
+  for (let r = size * 2.5; r > size * 0.8; r -= 4) {
+    let alpha = p.map(r, size * 0.8, size * 2.5, 60 * stability, 0);
+    p.fill(col[0], col[1], col[2], alpha);
+    p.ellipse(0, 0, r, r);
+  }
+
+  // Heart shape
+  p.fill(col[0], col[1], col[2], 255);
+  p.noStroke();
+  drawHeart(p, size);
+
+  // Inner highlight
+  p.fill(255, 255, 255, 120);
+  drawHeart(p, size * 0.35);
+
+  p.pop();
 }
 
 function drawCoherenceIndicator(p, state) {
