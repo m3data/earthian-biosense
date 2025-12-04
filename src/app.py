@@ -52,7 +52,8 @@ class SessionLogger:
         hr: int,
         rr_intervals: list[int],
         metrics: HRVMetrics | None,
-        dynamics: PhaseDynamics | None = None
+        dynamics: PhaseDynamics | None = None,
+        coherence: float | None = None
     ):
         """Log a data point to the session file.
 
@@ -88,6 +89,7 @@ class SessionLogger:
                 "stability": round(dynamics.stability, 4),
                 "history_signature": round(dynamics.history_signature, 4),
                 "phase_label": dynamics.phase_label,
+                "coherence": round(coherence, 4) if coherence is not None else None,
             }
 
         # Add semiotic marker if received from Semantic Climate
@@ -138,6 +140,7 @@ class TerminalUI:
         self.start_time: datetime | None = None
         self.latest_metrics: HRVMetrics | None = None
         self.latest_dynamics: PhaseDynamics | None = None
+        self.latest_coherence: float = 0.0  # trajectory coherence (global integrity)
         self.trajectory = PhaseTrajectory(window_size=30)  # ~30s of phase history
         self.logger = logger
         self.ws_server = ws_server
@@ -197,7 +200,9 @@ class TerminalUI:
         # Phase dynamics line (if available)
         if d:
             stability_bar = self.format_dot_bar(d.stability, width=5)
+            coherence_bar = self.format_dot_bar(self.latest_coherence, width=5)
             lines.append(f"  PHASE: {d.phase_label:<22} stab:{stability_bar} curv:{d.curvature:.2f}")
+            lines.append(f"  COH:   {self.latest_coherence:.2f}  {coherence_bar}              (trajectory integrity)")
         else:
             lines.append(f"  MODE (proto): {m.mode_label} ({m.mode_score:.2f})")
 
@@ -279,6 +284,9 @@ class TerminalUI:
                 timestamp=current_time
             )
 
+            # Compute trajectory coherence (global integrity metric)
+            self.latest_coherence = self.trajectory.compute_trajectory_coherence()
+
             # Log to session file at 1Hz
             if self.logger:
                 self.logger.log(
@@ -286,7 +294,8 @@ class TerminalUI:
                     self.latest_hr,
                     rr_values[-3:] if len(rr_values) >= 3 else rr_values,  # recent RRi
                     self.latest_metrics,
-                    self.latest_dynamics
+                    self.latest_dynamics,
+                    self.latest_coherence
                 )
 
             # Broadcast phase dynamics via WebSocket at 1Hz
@@ -345,6 +354,7 @@ class TerminalUI:
             print(f"  Position: ent={d.position[0]:.2f} breath={d.position[1]:.2f} amp={d.position[2]:.2f}")
             print(f"  Velocity mag: {d.velocity_magnitude:.3f}  Curvature: {d.curvature:.3f}")
             print(f"  Stability: {d.stability:.2f}  History: {d.history_signature:.2f}")
+            print(f"  Coherence: {self.latest_coherence:.2f} (trajectory integrity)")
             print(f"  Phase: {d.phase_label}")
         print("=" * 60 + "\n")
 

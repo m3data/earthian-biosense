@@ -5,10 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** 1d - Session Replay Visualization (In Progress)
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-03_phase_1d_session_replay_viz.md`
-**Commit:** 2b2cef6
-**Next Steps:** Complete replay instrument with design principles, first coupled EBS+SC session
+**Phase:** 1f - Coherence Logging & Session Validation (Complete)
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-04_coherence_logging_sessions.md`
+**Commit:** Pending
+**Next Steps:** Viz refactor (Phase 1-2), longer meditation session (20+ min), HRV complexity metrics (future)
+
+---
+## Active Conceptual Context
+
+**Key insight (2025-12-04):** What we called "coherence" was actually entrainment.
+
+- **Entrainment** = breath-heart phase coupling (local sync, the grip)
+- **Coherence** = trajectory integrity over time (global, the journey)
+- **Freedom** = repatterning capacity (longitudinal, the horizon)
+
+See `concepts/entrainment-coherence-freedom.md` for full documentation.
+
+**Schema version:** 1.0.0 — sessions now include version header. Old sessions archived in `sessions/v0-pre-distinction/`.
 
 ---
 ## Active Design Context

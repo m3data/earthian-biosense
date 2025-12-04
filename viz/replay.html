@@ -524,7 +524,7 @@ function drawCoherenceIndicator2D(p) {
 
   let idx = Math.floor(currentIndex);
   let sample = sessionData[idx];
-  let coh = sample.metrics.coh || 0;
+  let coh = sample.phase.coherence || 0;
 
   let barWidth = p.map(coh, 0, 1, 0, WIDTH - MARGIN * 2);
 
@@ -588,7 +588,8 @@ function drawLegend2D(p) {
 }
 
 function sampleToCanvas2D(sample, p) {
-  let coh = sample.metrics.coh || 0;
+  // Use phase.coherence (trajectory integrity) for x-axis
+  let coh = sample.phase.coherence || 0;
   let x = p.map(coh, 0, 1, MARGIN, WIDTH - MARGIN);
   let breathPos = sample.phase.position[1];
   let y = p.map(breathPos, 0, 1, HEIGHT - MARGIN, MARGIN);
@@ -1021,7 +1022,7 @@ function drawLegend3D(p) {
 
 function sampleToCanvas3D(sample) {
   // X: Coherence (0-1) -> -100 to 100
-  let coh = sample.metrics.coh || 0;
+  let coh = sample.phase.coherence || 0;
   let x = (coh - 0.5) * 200;
 
   // Y: Stability (0-1) -> 80 to -80 (inverted so high stability is "up")
@@ -1059,7 +1060,7 @@ function computeDwellDensity() {
 
   // Accumulate dwell time
   for (let sample of sessionData) {
-    let coh = sample.metrics.coh || 0;
+    let coh = sample.phase.coherence || 0;
     let stability = sample.phase.stability || 0.5;
     let ampPos = sample.phase.position[2] || 0.5;
 
@@ -1112,8 +1113,11 @@ function updateUI() {
   let sample = sessionData[idx];
 
   document.getElementById('m-hr').textContent = sample.hr || '—';
-  document.getElementById('m-coh').textContent = sample.metrics.coh ? sample.metrics.coh.toFixed(2) : '0.00';
-  document.getElementById('m-coh-label').textContent = sample.metrics.coh_label || '—';
+  // Use phase.coherence (trajectory integrity) instead of old metrics.coh
+  let coh = sample.phase.coherence || 0;
+  document.getElementById('m-coh').textContent = coh.toFixed(2);
+  // Show entrainment label as secondary info
+  document.getElementById('m-coh-label').textContent = sample.metrics.ent_label || '—';
   document.getElementById('m-breath').textContent = sample.metrics.breath ? sample.metrics.breath.toFixed(1) : '—';
   document.getElementById('m-stability').textContent = sample.phase.stability ? sample.phase.stability.toFixed(2) : '—';
   document.getElementById('m-mode').textContent = sample.metrics.mode || '—';
@@ -1152,7 +1156,10 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
 
   let text = await file.text();
   let lines = text.trim().split('\n');
-  sessionData = lines.map(line => JSON.parse(line));
+  let parsed = lines.map(line => JSON.parse(line));
+
+  // Filter out header records (type: "session_start") and any records without phase data
+  sessionData = parsed.filter(record => record.phase && record.metrics);
 
   currentIndex = 0;
   isPlaying = false;
