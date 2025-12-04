@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** 1f - Coherence Logging & Session Validation (Complete)
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-04_coherence_logging_sessions.md`
-**Commit:** 9efd01d
-**Next Steps:** Viz refactor (Phase 1-2), longer meditation session (20+ min), HRV complexity metrics (future)
+**Phase:** 1g - Viz Refactor Phase 1 (Complete)
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-04_viz_refactor_phase1.md`
+**Commit:** 14a55f6
+**Next Steps:** Viz Phase 2 (earth-warm palette), longer meditation session (20+ min), HRV complexity metrics (future)
 
 ---
 ## Active Conceptual Context
