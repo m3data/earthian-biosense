@@ -13,6 +13,7 @@ from ble.h10_client import H10Client
 from ble.parser import HeartRateData
 from processing.hrv import compute_hrv_metrics, HRVMetrics
 from processing.phase import PhaseTrajectory, PhaseDynamics
+from processing.schema import SCHEMA_VERSION
 from api.websocket_server import WebSocketServer, SemioticMarker, FieldEvent
 
 
@@ -32,6 +33,17 @@ class SessionLogger:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.session_file = self.session_dir / f"{timestamp}.jsonl"
         self.file_handle = open(self.session_file, 'w')
+
+        # Write header record with schema version
+        header = {
+            "type": "session_start",
+            "ts": datetime.now().isoformat(),
+            "schema_version": SCHEMA_VERSION,
+            "note": "ent=entrainment (breath-heart sync), coherence=trajectory integrity"
+        }
+        self.file_handle.write(json.dumps(header) + '\n')
+        self.file_handle.flush()
+
         return self.session_file
 
     def log(
