@@ -15,9 +15,11 @@ class HRVMetrics:
     # Rolling amplitude (vagal expansion signal)
     amplitude: int  # ms (max - min)
 
-    # Coherence scalar (0-1)
-    coherence: float
-    coherence_label: str  # [low], [emerging], [coherent], [high coherence]
+    # Entrainment scalar (0-1) - breath-heart phase coupling
+    # Note: This measures respiratory sinus arrhythmia / breath-heart sync
+    # NOT trajectory coherence (which requires autocorrelation over time)
+    entrainment: float
+    entrainment_label: str  # [low], [emerging], [entrained], [high entrainment]
 
     # Breath estimation
     breath_rate: float | None  # breaths per minute
@@ -60,14 +62,21 @@ def compute_autocorrelation(rr_intervals: list[int], lag: int) -> float:
     return autocovariance / variance
 
 
-def compute_coherence(rr_intervals: list[int], expected_breath_period: int = 5) -> tuple[float, str]:
+def compute_entrainment(rr_intervals: list[int], expected_breath_period: int = 5) -> tuple[float, str]:
     """
-    Compute coherence scalar using autocorrelation at expected breath period.
+    Compute entrainment scalar using autocorrelation at expected breath period.
 
-    Coherent breathing at ~6 breaths/min = ~10s period = ~10-12 RR intervals at 60 BPM.
+    This measures BREATH-HEART ENTRAINMENT (respiratory sinus arrhythmia) —
+    how tightly the heart rhythm is phase-locked to breathing.
+
+    This is NOT trajectory coherence. Coherence (trajectory integrity over time)
+    requires tracking movement through phase space and computing autocorrelation
+    of the trajectory itself.
+
+    Entrained breathing at ~6 breaths/min = ~10s period = ~10-12 RR intervals at 60 BPM.
     We look for strong autocorrelation at lags corresponding to breath cycle.
 
-    Returns (coherence_score, label)
+    Returns (entrainment_score, label)
     """
     if len(rr_intervals) < 10:
         return 0.0, "[insufficient data]"
@@ -82,19 +91,19 @@ def compute_coherence(rr_intervals: list[int], expected_breath_period: int = 5) 
     max_corr = max(correlations) if correlations else 0.0
 
     # Clamp to 0-1 range (autocorrelation can be negative)
-    coherence = max(0.0, min(1.0, max_corr))
+    entrainment = max(0.0, min(1.0, max_corr))
 
     # Apply labels
-    if coherence < 0.2:
+    if entrainment < 0.2:
         label = "[low]"
-    elif coherence < 0.4:
+    elif entrainment < 0.4:
         label = "[emerging]"
-    elif coherence < 0.7:
-        label = "[coherent]"
+    elif entrainment < 0.7:
+        label = "[entrained]"
     else:
-        label = "[high coherence]"
+        label = "[high entrainment]"
 
-    return coherence, label
+    return entrainment, label
 
 
 def find_peaks(rr_intervals: list[int]) -> list[int]:
@@ -208,7 +217,7 @@ def compute_volatility(rr_intervals: list[int]) -> float:
     return std_dev / mean_rr
 
 
-def compute_mode(amplitude: int, coherence: float, breath_steady: bool, volatility: float) -> tuple[str, float]:
+def compute_mode(amplitude: int, entrainment: float, breath_steady: bool, volatility: float) -> tuple[str, float]:
     """
     Compute MODE (proto) - exploratory inference combining multiple signals.
 
@@ -219,12 +228,12 @@ def compute_mode(amplitude: int, coherence: float, breath_steady: bool, volatili
     amp_norm = min(1.0, amplitude / 200)
 
     # Composite score weighted by different factors
-    # High coherence + steady breath + moderate amplitude = coherent state
-    # High volatility + low coherence = vigilance/stress
-    # Low amplitude + low coherence = suppressed/disengaged
+    # High entrainment + steady breath + moderate amplitude = settled state
+    # High volatility + low entrainment = vigilance/stress
+    # Low amplitude + low entrainment = suppressed/disengaged
 
     # Simple weighted combination for proto version
-    calm_score = (coherence * 0.4 +
+    calm_score = (entrainment * 0.4 +
                   (1.0 if breath_steady else 0.3) * 0.3 +
                   amp_norm * 0.2 +
                   (1 - volatility * 5) * 0.1)  # Lower volatility = calmer
@@ -253,7 +262,7 @@ def compute_hrv_metrics(rr_intervals: list[int]) -> HRVMetrics:
     if not rr_intervals:
         return HRVMetrics(
             mean_rr=0, min_rr=0, max_rr=0,
-            amplitude=0, coherence=0, coherence_label="[no data]",
+            amplitude=0, entrainment=0, entrainment_label="[no data]",
             breath_rate=None, breath_steady=False,
             rr_volatility=0, mode_label="unknown", mode_score=0
         )
@@ -263,18 +272,18 @@ def compute_hrv_metrics(rr_intervals: list[int]) -> HRVMetrics:
     max_rr = max(rr_intervals)
 
     amplitude = compute_amplitude(rr_intervals)
-    coherence, coherence_label = compute_coherence(rr_intervals)
+    entrainment, entrainment_label = compute_entrainment(rr_intervals)
     breath_rate, breath_steady = compute_breath_rate(rr_intervals)
     volatility = compute_volatility(rr_intervals)
-    mode_label, mode_score = compute_mode(amplitude, coherence, breath_steady, volatility)
+    mode_label, mode_score = compute_mode(amplitude, entrainment, breath_steady, volatility)
 
     return HRVMetrics(
         mean_rr=mean_rr,
         min_rr=min_rr,
         max_rr=max_rr,
         amplitude=amplitude,
-        coherence=coherence,
-        coherence_label=coherence_label,
+        entrainment=entrainment,
+        entrainment_label=entrainment_label,
         breath_rate=breath_rate,
         breath_steady=breath_steady,
         rr_volatility=volatility,

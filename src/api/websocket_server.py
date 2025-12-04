@@ -207,10 +207,15 @@ class WebSocketServer:
         velocity_mag: float,
         curvature: float,
         stability: float,
-        coherence: float,
+        entrainment: float,
         phase_label: str
     ):
-        """Broadcast phase dynamics to all connected clients (1Hz)."""
+        """Broadcast phase dynamics to all connected clients (1Hz).
+
+        Note: 'entrainment' is breath-heart phase coupling (local sync).
+        Coherence (trajectory integrity) is a separate metric computed
+        from trajectory autocorrelation - not yet implemented.
+        """
         if not self.clients:
             return
 
@@ -218,12 +223,12 @@ class WebSocketServer:
             "type": "phase",
             "ts": timestamp.isoformat(),
             "hr": hr,
-            "position": [round(p, 4) for p in position],
+            "position": [round(p, 4) for p in position],  # (entrainment, breath, amplitude)
             "velocity": [round(v, 4) for v in velocity],
             "velocity_mag": round(velocity_mag, 4),
             "curvature": round(curvature, 4),
             "stability": round(stability, 4),
-            "coherence": round(coherence, 3),
+            "entrainment": round(entrainment, 3),  # breath-heart sync
             "phase_label": phase_label
         }
 

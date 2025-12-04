@@ -3,7 +3,14 @@
 Treats each moment as a point on a trajectory in a 3D manifold,
 not a dot on a line. Movement matters.
 
-Manifold coordinates: (coherence, breath_rate_norm, amplitude_norm)
+Manifold coordinates: (entrainment, breath_rate_norm, amplitude_norm)
+
+Note on terminology:
+- ENTRAINMENT = breath-heart phase coupling (local sync, the grip)
+- COHERENCE = trajectory integrity over time (global, computed from trajectory autocorrelation)
+
+The manifold position uses entrainment as one axis. Coherence is a property
+of the trajectory *through* the manifold, not a coordinate within it.
 """
 
 from dataclasses import dataclass, field
@@ -18,7 +25,7 @@ from .hrv import HRVMetrics
 class PhaseState:
     """A single point in phase space with timestamp."""
     timestamp: float
-    position: tuple[float, float, float]  # (coherence, breath, amplitude)
+    position: tuple[float, float, float]  # (entrainment, breath, amplitude)
 
 
 @dataclass
@@ -27,10 +34,10 @@ class PhaseDynamics:
     timestamp: float
 
     # Position in 3D manifold
-    position: tuple[float, float, float]  # (coherence, breath, amplitude)
+    position: tuple[float, float, float]  # (entrainment, breath, amplitude)
 
     # First derivative - direction of movement
-    velocity: tuple[float, float, float]  # (dcoh/dt, dbreath/dt, damp/dt)
+    velocity: tuple[float, float, float]  # (dent/dt, dbreath/dt, damp/dt)
     velocity_magnitude: float
 
     # Second derivative magnitude - quality of movement
@@ -113,8 +120,8 @@ class PhaseTrajectory:
 
     def _metrics_to_position(self, m: HRVMetrics) -> tuple[float, float, float]:
         """Map HRV metrics to manifold coordinates (all normalized 0-1)."""
-        # Coherence: already 0-1
-        coh = m.coherence
+        # Entrainment: already 0-1
+        ent = m.entrainment
 
         # Breath rate: normalize ~4-20 breaths/min → 0-1
         # 4 bpm → 0, 12 bpm → 0.5, 20 bpm → 1
@@ -126,7 +133,7 @@ class PhaseTrajectory:
         # Amplitude: normalize 0-200ms → 0-1
         amp = min(1.0, m.amplitude / 200)
 
-        return (coh, breath, amp)
+        return (ent, breath, amp)
 
     def _compute_dynamics(self, new_state: PhaseState, metrics: HRVMetrics) -> PhaseDynamics:
         """Compute velocity, curvature, stability from trajectory."""
@@ -229,34 +236,36 @@ class PhaseTrajectory:
 
         This is still provisional - letting patterns emerge rather than
         imposing ontology.
-        """
-        coh, breath, amp = position
 
-        # High stability + high coherence = settled coherence
-        if stability > 0.7 and coh > 0.6:
-            return "coherent dwelling"
+        Note: 'ent' here is entrainment (breath-heart sync), not coherence.
+        Coherence (trajectory integrity) would require looking at the
+        trajectory history, not just current position.
+        """
+        ent, breath, amp = position
+
+        # High stability + high entrainment = settled/entrained dwelling
+        if stability > 0.7 and ent > 0.6:
+            return "entrained dwelling"
 
         # High curvature = turning point, transition
         if curvature > 0.3:
-            if coh > 0.5:
-                return "inflection (from coherence)"
+            if ent > 0.5:
+                return "inflection (from entrainment)"
             else:
                 return "inflection (seeking)"
 
-        # High velocity + direction toward coherence
+        # High velocity + direction
         if velocity_mag > 0.1:
-            # Check if moving toward higher coherence
-            # (would need velocity[0] but keeping simple for now)
-            if coh > 0.5:
-                return "flowing coherence"
+            if ent > 0.5:
+                return "flowing (entrained)"
             else:
                 return "active transition"
 
         # Low everything = dwelling but where?
         if stability > 0.6:
-            if coh > 0.5:
-                return "settling into coherence"
-            elif coh > 0.3:
+            if ent > 0.5:
+                return "settling into entrainment"
+            elif ent > 0.3:
                 return "neutral dwelling"
             else:
                 return "vigilant stillness"
@@ -283,3 +292,82 @@ class PhaseTrajectory:
         self.states.clear()
         self.cumulative_path_length = 0.0
         self._last_velocity = (0.0, 0.0, 0.0)
+
+    def compute_trajectory_coherence(self, lag: int = 5) -> float:
+        """
+        Compute COHERENCE as trajectory autocorrelation.
+
+        This is the key insight: coherence is NOT entrainment (breath-heart sync).
+        Coherence is how well the trajectory through phase space hangs together
+        over time — the autocorrelation of movement patterns.
+
+        High coherence = the system's movement has integrity, patterns persist
+        Low coherence = fragmented, reactive, no trajectory continuity
+
+        Args:
+            lag: Number of states to lag for autocorrelation (default 5 = ~5 seconds)
+
+        Returns:
+            coherence: 0-1 score of trajectory integrity
+        """
+        if len(self.states) < lag + 3:
+            return 0.0  # Insufficient data
+
+        # Extract velocity vectors from recent trajectory
+        # We're asking: does the *pattern of movement* correlate with itself?
+        positions = [s.position for s in self.states]
+
+        # Compute velocity sequence (first differences)
+        velocities = []
+        for i in range(1, len(positions)):
+            v = tuple(positions[i][j] - positions[i-1][j] for j in range(3))
+            velocities.append(v)
+
+        if len(velocities) < lag + 2:
+            return 0.0
+
+        # Compute autocorrelation of velocity magnitudes
+        # This captures: is the *intensity* of movement consistent over time?
+        v_mags = [self._vector_magnitude(v) for v in velocities]
+
+        n = len(v_mags)
+        mean_v = sum(v_mags) / n
+        variance = sum((x - mean_v) ** 2 for x in v_mags) / n
+
+        if variance < 1e-10:
+            # Near-zero variance = perfectly still = high coherence (dwelling)
+            return 0.8
+
+        # Autocovariance at lag
+        autocovariance = sum(
+            (v_mags[i] - mean_v) * (v_mags[i + lag] - mean_v)
+            for i in range(n - lag)
+        ) / (n - lag)
+
+        autocorr = autocovariance / variance
+
+        # Also consider direction consistency (are we moving in consistent directions?)
+        # Compute cosine similarity between velocity vectors at lag
+        direction_coherence = 0.0
+        count = 0
+        for i in range(len(velocities) - lag):
+            v1 = velocities[i]
+            v2 = velocities[i + lag]
+            mag1 = self._vector_magnitude(v1)
+            mag2 = self._vector_magnitude(v2)
+            if mag1 > 1e-6 and mag2 > 1e-6:
+                dot = sum(v1[j] * v2[j] for j in range(3))
+                cosine = dot / (mag1 * mag2)
+                direction_coherence += (cosine + 1) / 2  # Normalize to 0-1
+                count += 1
+
+        if count > 0:
+            direction_coherence /= count
+        else:
+            direction_coherence = 0.5  # Neutral if no movement
+
+        # Combine magnitude autocorrelation and direction consistency
+        # Both matter: coherent trajectory has consistent intensity AND direction patterns
+        coherence = 0.5 * max(0.0, autocorr) + 0.5 * direction_coherence
+
+        return max(0.0, min(1.0, coherence))

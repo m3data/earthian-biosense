@@ -58,8 +58,8 @@ class SessionLogger:
         if metrics:
             record["metrics"] = {
                 "amp": metrics.amplitude,
-                "coh": round(metrics.coherence, 3),
-                "coh_label": metrics.coherence_label,
+                "ent": round(metrics.entrainment, 3),  # entrainment (breath-heart sync)
+                "ent_label": metrics.entrainment_label,
                 "breath": round(metrics.breath_rate, 1) if metrics.breath_rate else None,
                 "volatility": round(metrics.rr_volatility, 4),
                 # Keep flat mode fields for backward compat
@@ -178,9 +178,9 @@ class TerminalUI:
         breath_str = f"~{m.breath_rate:.1f} /min" if m.breath_rate else "---"
         lines.append(f"  AMP: {m.amplitude:3d}ms  {amp_bar}          BREATH: {breath_str}")
 
-        # COH line with dot bar
-        coh_bar = self.format_dot_bar(m.coherence)
-        lines.append(f"  COH:  {m.coherence:.2f}  {coh_bar}          {m.coherence_label}")
+        # ENT (entrainment) line with dot bar
+        ent_bar = self.format_dot_bar(m.entrainment)
+        lines.append(f"  ENT:  {m.entrainment:.2f}  {ent_bar}          {m.entrainment_label}")
 
         # Phase dynamics line (if available)
         if d:
@@ -287,7 +287,7 @@ class TerminalUI:
                     velocity_mag=self.latest_dynamics.velocity_magnitude,
                     curvature=self.latest_dynamics.curvature,
                     stability=self.latest_dynamics.stability,
-                    coherence=self.latest_metrics.coherence,
+                    entrainment=self.latest_metrics.entrainment,
                     phase_label=self.latest_dynamics.phase_label
                 ))
 
@@ -322,7 +322,7 @@ class TerminalUI:
             m = self.latest_metrics
             print("-" * 60)
             print("  Final Metrics")
-            print(f"  AMP: {m.amplitude}ms  COH: {m.coherence:.2f} {m.coherence_label}")
+            print(f"  AMP: {m.amplitude}ms  ENT: {m.entrainment:.2f} {m.entrainment_label}")
             if m.breath_rate:
                 print(f"  BREATH: ~{m.breath_rate:.1f} /min")
             print(f"  MODE (scalar): {m.mode_label} ({m.mode_score:.2f})")
@@ -330,7 +330,7 @@ class TerminalUI:
             d = self.latest_dynamics
             print("-" * 60)
             print("  Phase Dynamics")
-            print(f"  Position: coh={d.position[0]:.2f} breath={d.position[1]:.2f} amp={d.position[2]:.2f}")
+            print(f"  Position: ent={d.position[0]:.2f} breath={d.position[1]:.2f} amp={d.position[2]:.2f}")
             print(f"  Velocity mag: {d.velocity_magnitude:.3f}  Curvature: {d.curvature:.3f}")
             print(f"  Stability: {d.stability:.2f}  History: {d.history_signature:.2f}")
             print(f"  Phase: {d.phase_label}")
