@@ -50,20 +50,25 @@ export const CONFIG = {
 };
 
 /**
- * Mode Color Palette
+ * Mode Color Palette — Earth-Warm
  *
  * Maps autonomic mode labels to RGB values.
- * These colors encode interpretive meaning —
- * warm = vigilance, cool = settling, green = coherence.
+ *
+ * Design principle: Colors differentiate without ranking.
+ * No state is "better" — just different textures of becoming.
+ * Warm earth tones invite settling rather than striving.
+ *
+ * Palette: ochres, ambers, terracottas, clay, sandstone
  */
 export const MODE_COLORS = {
-  'heightened vigilance': [255, 120, 80],
-  'subtle vigilance': [220, 180, 100],
-  'settling': [100, 160, 200],
-  'transitional': [180, 150, 200],
-  'emerging coherence': [120, 200, 160],
-  'coherent': [100, 220, 180],
-  'deep coherence': [80, 240, 200]
+  'heightened vigilance': [190, 120, 90],   // terracotta — active, present
+  'subtle vigilance': [175, 145, 110],      // warm sand — attending
+  'transitional': [165, 135, 115],          // clay — moving between
+  'settling': [155, 140, 120],              // soft umber — easing
+  'emerging coherence': [180, 155, 125],    // amber — gathering
+  'coherent presence': [170, 150, 130],     // sandstone — dwelling
+  'coherent': [170, 150, 130],              // sandstone (alias)
+  'deep coherence': [160, 145, 125]         // deep ochre — resting
 };
 
 /**
@@ -75,7 +80,7 @@ export function getModeColor(mode) {
       return MODE_COLORS[key];
     }
   }
-  return [150, 150, 150]; // Default gray
+  return [160, 145, 130]; // Default: warm neutral earth tone
 }
 
 /**

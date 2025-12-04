@@ -5,7 +5,7 @@
  * Reveals attractor basins and autonomic landscape structure.
  */
 
-import { CONFIG, getModeColor, MODE_COLORS, lerpColor } from './config.js';
+import { CONFIG, getModeColor, lerpColor } from './config.js';
 
 const { width: WIDTH, height: HEIGHT } = CONFIG.canvas;
 const DENSITY_GRID = CONFIG.density.gridSize;
@@ -49,7 +49,7 @@ export function createSketch3D(state, handlePlayback) {
       drawDwellDensity(p, state);
       drawTrail(p, state);
       drawCurrentPosition(p, state);
-      drawLegend(p);
+      // Legend is now an HTML overlay (see replay.html)
     };
 
     p.mousePressed = function() {
@@ -174,9 +174,10 @@ function drawDwellDensity(p, state) {
         let z = p.map(zi, 0, DENSITY_GRID, -100, 100);
 
         let cohFactor = xi / DENSITY_GRID;
+        // Earth-warm palette: terracotta → amber as coherence increases
         let col = lerpColor(
-          [220, 180, 100],
-          [100, 200, 180],
+          [190, 130, 100],  // warm clay (low coherence)
+          [180, 155, 120],  // soft amber (high coherence)
           cohFactor
         );
 
@@ -352,65 +353,6 @@ function drawCurrentPosition(p, state) {
   p.push();
   p.translate(pos.x, pos.y, pos.z);
   p.sphere(size * 0.3);
-  p.pop();
-}
-
-function drawLegend(p) {
-  p.push();
-
-  p.drawingContext.disable(p.drawingContext.DEPTH_TEST);
-  p.ortho(-WIDTH/2, WIDTH/2, -HEIGHT/2, HEIGHT/2, -1000, 1000);
-  p.resetMatrix();
-
-  let legendX = WIDTH/2 - 155;
-  let legendY = -HEIGHT/2 + 70;
-  let swatchSize = 10;
-  let lineHeight = 18;
-
-  let modes = [
-    ['heightened vigilance', 'heightened'],
-    ['subtle vigilance', 'subtle vigilance'],
-    ['transitional', 'transitional'],
-    ['settling', 'settling'],
-    ['emerging coherence', 'emerging'],
-    ['deep coherence', 'coherent']
-  ];
-
-  p.noStroke();
-  p.fill(10, 10, 15, 230);
-  p.rect(legendX - 12, legendY - 8, 145, modes.length * lineHeight + 24, 4);
-
-  p.stroke(50);
-  p.strokeWeight(1);
-  p.noFill();
-  p.rect(legendX - 12, legendY - 8, 145, modes.length * lineHeight + 24, 4);
-
-  p.noStroke();
-  p.fill(100);
-  p.textSize(10);
-  p.textAlign(p.LEFT, p.TOP);
-  p.text('MODE', legendX, legendY - 2);
-
-  legendY += 18;
-
-  for (let i = 0; i < modes.length; i++) {
-    let [key, label] = modes[i];
-    let col = MODE_COLORS[key] || [150, 150, 150];
-
-    p.noStroke();
-    p.fill(col[0], col[1], col[2], 50);
-    p.ellipse(legendX + swatchSize/2, legendY + i * lineHeight + swatchSize/2, swatchSize + 6, swatchSize + 6);
-
-    p.fill(col[0], col[1], col[2], 220);
-    p.ellipse(legendX + swatchSize/2, legendY + i * lineHeight + swatchSize/2, swatchSize, swatchSize);
-
-    p.fill(140);
-    p.textSize(11);
-    p.textAlign(p.LEFT, p.CENTER);
-    p.text(label, legendX + swatchSize + 10, legendY + i * lineHeight + swatchSize/2);
-  }
-
-  p.drawingContext.enable(p.drawingContext.DEPTH_TEST);
   p.pop();
 }
 

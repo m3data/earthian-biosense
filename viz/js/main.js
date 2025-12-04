@@ -103,10 +103,13 @@ function initP5(mode) {
 
   // Update hint
   let hint = document.getElementById('view-hint');
+  let legend = document.getElementById('legend');
   if (mode === '3d') {
     hint.textContent = 'drag to rotate · scroll to zoom';
+    legend.classList.remove('hidden');
   } else {
     hint.textContent = '';
+    legend.classList.add('hidden');
   }
 }
 
