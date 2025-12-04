@@ -1,8 +1,8 @@
 # Entrainment, Coherence, Freedom
 
-**Status:** Working inquiry — definitions emerging
+**Status:** Working inquiry — empirically validated, new distinctions emerging
 **Date:** 2025-12-04
-**Updated:** 2025-12-04 (category error resolved)
+**Updated:** 2025-12-04 (empirical validation, constrained/permeable distinction)
 **Context:** Human-human coupling sessions (pA, pT, pM), single ANS feed + phenomenological constraint
 
 ---
@@ -126,12 +126,56 @@ As session data accumulates, patterns may emerge that make freedom tractable.
 
 ---
 
+## Empirical Validation (2025-12-04)
+
+Two sessions confirmed the entrainment/coherence inversion:
+
+| Session | Activity | Coherence | Entrainment |
+|---------|----------|-----------|-------------|
+| pM_182343 | Self-talk (processing tension) | **0.47** (peak) | 0.0-0.5 (volatile) |
+| pM_182343 | Rhythmic chanting | 0.21-0.33 | **0.42-0.55** (sustained) |
+| pM_185104 | Meditation (7 min) | **0.55-0.56** (peak) | 0.0 |
+| pM_185104 | Dancing/singing | 0.20-0.34 | **0.50-0.58** (sustained) |
+
+**Pattern:** Cognitive processing / meditation → high coherence, low entrainment. Rhythmic activity → high entrainment, lower coherence.
+
+The system appears to use different modes:
+- **Coherence mode:** Trajectory integrity without breath-heart lock (meditation, internal processing)
+- **Entrainment mode:** Active reorganization with strong local coupling (movement, rhythm, chanting)
+
+---
+
+## Constrained vs. Permeable Coherence
+
+**Critical distinction the current metrics cannot capture.**
+
+Trajectory autocorrelation measures *that* coherence exists, not *how* it's maintained. Two phenomenologically opposite states can produce similar coherence scores:
+
+| | Constrained Coherence | Permeable Coherence |
+|---|---|---|
+| **Mechanism** | System *held* still | System *settled* still |
+| **Stability source** | Vigilance doing work | Attractor basin depth |
+| **Perturbation response** | Disrupted, snaps back | Absorbs, flows through |
+| **Phenomenology** | Effortful, watchful | Effortless, present |
+| **Autonomic signature** | Dorsal vagal (freeze) | Ventral vagal (social engagement) |
+
+**Participant context (pM):** Nervous system shaped by early trauma. "Vigilant stillness" may be accurate — system holding pattern through effort, not resting in it. The 20-minute threshold for "sinking into presence" may mark the shift from constrained to permeable.
+
+**Implication:** Coherence 0.55 in a 3-minute meditation represents *organizing toward* depth, not arrival. The body needs time to trust that stillness isn't a trap.
+
+**Future direction:** HRV complexity metrics (sample entropy, DFA alpha) would distinguish constrained from permeable coherence. Constrained = lower entropy, more rigid correlations. Permeable = higher entropy within bounds, healthy 1/f scaling.
+
+---
+
 ## Open Questions
 
-- Can we distinguish entrainment-without-coherence from coherence-without-entrainment in the session data?
+- ~~Can we distinguish entrainment-without-coherence from coherence-without-entrainment in the session data?~~ **Yes — confirmed empirically.**
 - What does the autocorrelation structure look like in high-coherence vs low-coherence sessions?
 - How do perturbations (phase B3 in EECP) show up in the metrics? Is there a "perturbation signature"?
 - Can phenomenological reports of "freedom" be correlated with transition dynamics in the ANS trace?
+- **NEW:** Can HRV complexity distinguish constrained from permeable coherence?
+- **NEW:** What does 20+ minutes of meditation show — does coherence plateau or deepen beyond "holding"?
+- **NEW:** Does the entrainment/coherence inversion hold with instrument play (producing rhythm vs. receiving rhythm)?
 
 ---
 
@@ -143,7 +187,7 @@ These concepts refine the coherence detection layer (Phase C) of the EECP protoc
 - **Coherence** → trajectory-level analysis (new: `compute_trajectory_coherence()` in `phase.py`)
 - **Freedom** → longitudinal/meta-analysis (future horizon)
 
-The protocol currently streams both entrainment and phase dynamics. True coherence measurement is now available but not yet integrated into the main output stream — it needs validation against session data and phenomenological reports.
+The protocol streams entrainment, phase dynamics, and trajectory coherence. Coherence is now logged at 1Hz and validated against session data. The constrained/permeable distinction points toward HRV complexity as the next instrumentation layer.
 
 ---
 

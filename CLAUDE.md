@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Phase:** 1f - Coherence Logging & Session Validation (Complete)
 **Latest Dev Update:** `claude-dev/DEV_UPDATE_2025-12-04_coherence_logging_sessions.md`
-**Commit:** Pending
+**Commit:** 9efd01d
 **Next Steps:** Viz refactor (Phase 1-2), longer meditation session (20+ min), HRV complexity metrics (future)
 
 ---
@@ -18,6 +18,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Entrainment** = breath-heart phase coupling (local sync, the grip)
 - **Coherence** = trajectory integrity over time (global, the journey)
 - **Freedom** = repatterning capacity (longitudinal, the horizon)
+
+**Empirical validation:** Sessions confirm entrainment/coherence inversion — meditation shows high coherence (0.55) with low entrainment; rhythmic activity shows high entrainment (0.50+) with lower coherence.
+
+**Emerging distinction:** Constrained vs. permeable coherence. Current metrics can't distinguish holding (vigilance doing work) from settling (resting in attractor). HRV complexity metrics (sample entropy, DFA) identified as future direction.
 
 See `concepts/entrainment-coherence-freedom.md` for full documentation.
 
@@ -45,7 +49,7 @@ These principles are not technical specifications but ethical commitments. They 
 
 EarthianBioSense (EBS) is a Python biosignal acquisition and streaming client for the Earthian Ecological Coherence Protocol (EECP). It connects to Polar H10 heart rate monitors via BLE, processes physiological signals, and streams data to downstream systems.
 
-**Current Status**: Pre-implementation (specification phase). See `initial-spec-v.0.1.md` for full technical specification.
+**Current Status**: Phase 1 implementation complete — BLE connection, HRV metrics, phase dynamics, entrainment/coherence logging, terminal UI, session recording. See `initial-spec-v.0.1.md` for original specification.
 
 ## v0.1 Scope (Critical)
 
