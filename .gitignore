@@ -32,3 +32,9 @@ docs/theoretical-grounding.md
 docs/metrics.md
 docs/phase-space.md
 docs/proto-labels.md
+
+# Claude docs
+context/
+claude-dev/
+CLAUDE.md
+.claude/
