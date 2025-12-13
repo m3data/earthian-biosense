@@ -94,7 +94,11 @@ class H10Client:
         """Disconnect from the H10 device."""
         self._running = False
         if self._client and self._client.is_connected:
-            await self._client.stop_notify(HEART_RATE_MEASUREMENT_CHAR_UUID)
+            # Only stop notifications if we started them
+            try:
+                await self._client.stop_notify(HEART_RATE_MEASUREMENT_CHAR_UUID)
+            except (ValueError, Exception):
+                pass  # Notifications may not have been started
             await self._client.disconnect()
         self._status.connected = False
 
