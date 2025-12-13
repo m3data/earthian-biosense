@@ -20,6 +20,12 @@ const state = {
   p5Instance: null,
   dwellDensity: [],
 
+  // Dyadic session state
+  isDyadic: false,
+  participants: null,        // { A: { strap: '...' }, B: { strap: '...' } }
+  dataA: [],                 // Participant A samples (for per-participant trajectory)
+  dataB: [],                 // Participant B samples
+
   cam3D: {
     rotX: CONFIG.camera3D.initialRotX,
     rotY: CONFIG.camera3D.initialRotY,
@@ -60,7 +66,14 @@ function updateUI() {
   let idx = Math.floor(state.currentIndex);
   let sample = state.sessionData[idx];
 
-  document.getElementById('m-hr').textContent = sample.hr || '—';
+  if (state.isDyadic) {
+    // Dyadic: show current sample's participant data with indicator
+    let participant = sample.participant || '?';
+    document.getElementById('m-hr').textContent = `${sample.hr || '—'} (${participant})`;
+  } else {
+    document.getElementById('m-hr').textContent = sample.hr || '—';
+  }
+
   let coh = sample.phase.coherence || 0;
   document.getElementById('m-coh').textContent = coh.toFixed(2);
   document.getElementById('m-coh-label').textContent = sample.metrics.ent_label || '—';
@@ -70,10 +83,36 @@ function updateUI() {
 
   // Update phase label with mode-colored border
   const phaseLabel = document.getElementById('phase-label');
-  phaseLabel.textContent = sample.phase.phase_label || '—';
-  const modeColor = getModeColor(sample.metrics.mode);
-  phaseLabel.style.borderColor = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
-  phaseLabel.style.color = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+  if (state.isDyadic) {
+    // Find current samples for both participants based on timestamp
+    let currentTs = new Date(sample.ts).getTime();
+
+    let sampleA = null, sampleB = null;
+    for (let i = state.dataA.length - 1; i >= 0; i--) {
+      if (new Date(state.dataA[i].ts).getTime() <= currentTs) {
+        sampleA = state.dataA[i];
+        break;
+      }
+    }
+    for (let i = state.dataB.length - 1; i >= 0; i--) {
+      if (new Date(state.dataB[i].ts).getTime() <= currentTs) {
+        sampleB = state.dataB[i];
+        break;
+      }
+    }
+
+    let labelA = sampleA ? sampleA.phase.phase_label : '—';
+    let labelB = sampleB ? sampleB.phase.phase_label : '—';
+
+    phaseLabel.innerHTML = `<span style="color: rgb(217, 95, 2)">A:</span> ${labelA} · <span style="color: rgb(27, 158, 119)">B:</span> ${labelB}`;
+    phaseLabel.style.borderColor = 'rgb(80, 80, 90)';
+    phaseLabel.style.color = 'rgb(160, 160, 160)';
+  } else {
+    phaseLabel.textContent = sample.phase.phase_label || '—';
+    const modeColor = getModeColor(sample.metrics.mode);
+    phaseLabel.style.borderColor = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+    phaseLabel.style.color = `rgb(${modeColor[0]}, ${modeColor[1]}, ${modeColor[2]})`;
+  }
 
   document.getElementById('timeline').value = (state.currentIndex / (state.sessionData.length - 1)) * 100;
 
@@ -231,15 +270,35 @@ function setupEventHandlers() {
     let lines = text.trim().split('\n');
     let parsed = lines.map(line => JSON.parse(line));
 
-    // Filter out header records
+    // Find header and detect session type
+    let header = parsed.find(r => r.type === 'session_start');
+
+    // Filter out header records - keep only data records with phase/metrics
     state.sessionData = parsed.filter(record => record.phase && record.metrics);
+
+    // Detect dyadic session
+    if (header && header.session_type === 'dyadic' && header.processed) {
+      state.isDyadic = true;
+      state.participants = header.participants || { A: {}, B: {} };
+
+      // Separate participant streams for trajectory rendering
+      state.dataA = state.sessionData.filter(r => r.participant === 'A');
+      state.dataB = state.sessionData.filter(r => r.participant === 'B');
+
+      console.log(`Dyadic session loaded: A=${state.dataA.length}, B=${state.dataB.length}`);
+    } else {
+      state.isDyadic = false;
+      state.participants = null;
+      state.dataA = [];
+      state.dataB = [];
+    }
 
     state.currentIndex = 0;
     state.isPlaying = false;
     state.dwellDensity = computeDwellDensity(state.sessionData);
 
     document.getElementById('play-btn').innerHTML = '<i class="ph ph-play"></i>';
-    document.getElementById('session-name').textContent = file.name;
+    document.getElementById('session-name').textContent = file.name + (state.isDyadic ? ' (dyadic)' : '');
     document.getElementById('phase-label').textContent = '— ready —';
 
     updateUI();

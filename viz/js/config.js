@@ -46,6 +46,33 @@ export const CONFIG = {
   playback: {
     msPerSample: 2000,    // Real-time: ~2s between samples
     speeds: [0.5, 1, 2, 4]
+  },
+
+  // Dyadic session rendering
+  dyadic: {
+    trailLength: 60       // Shorter trails for clarity with two trajectories
+  }
+};
+
+/**
+ * Participant Color Palette — Dyadic Sessions
+ *
+ * Distinct hues for two participants that remain earth-warm.
+ * A: warm orange-terracotta spectrum
+ * B: cool teal-blue spectrum
+ *
+ * Each participant has base color and mode-modulated variants.
+ */
+export const PARTICIPANT_COLORS = {
+  A: {
+    base: [217, 95, 2],       // burnt orange — matches phase plot
+    glow: [235, 140, 60],     // lighter orange for glow
+    trail: [205, 110, 70]     // terracotta trail
+  },
+  B: {
+    base: [27, 158, 119],     // soft teal — matches phase plot
+    glow: [80, 180, 150],     // lighter teal for glow
+    trail: [100, 140, 160]    // slate blue trail
   }
 };
 
