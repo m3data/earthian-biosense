@@ -241,10 +241,13 @@ def compute_mode(amplitude: int, entrainment: float, breath_steady: bool, volati
     calm_score = max(0.0, min(1.0, calm_score))
 
     # Map to provisional labels
+    # NOTE: "vigilance" renamed to "alertness" in v1.1.0
+    # "Alertness" is neutral (awake, attentive)
+    # "Vigilance" carried threat/hypervigilance connotations
     if calm_score < 0.2:
-        label = "heightened vigilance"
+        label = "heightened alertness"
     elif calm_score < 0.35:
-        label = "subtle vigilance"
+        label = "subtle alertness"
     elif calm_score < 0.5:
         label = "transitional"
     elif calm_score < 0.65:

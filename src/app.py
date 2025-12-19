@@ -90,7 +90,30 @@ class SessionLogger:
                 "history_signature": round(dynamics.history_signature, 4),
                 "phase_label": dynamics.phase_label,
                 "coherence": round(coherence, 4) if coherence is not None else None,
+                # === Movement-preserving classification (v1.1.0) ===
+                "movement_annotation": dynamics.movement_annotation,
+                "movement_aware_label": dynamics.movement_aware_label,
+                "mode_status": dynamics.mode_status,
+                "dwell_time": round(dynamics.dwell_time, 2),
+                "acceleration_mag": round(dynamics.acceleration_magnitude, 4),
             }
+            # Add soft_mode if available (nested object)
+            if dynamics.soft_mode:
+                record["phase"]["soft_mode"] = {
+                    "primary": dynamics.soft_mode.primary_mode,
+                    "secondary": dynamics.soft_mode.secondary_mode,
+                    "ambiguity": round(dynamics.soft_mode.ambiguity, 4),
+                    "distribution_shift": round(dynamics.soft_mode.distribution_shift, 6)
+                        if dynamics.soft_mode.distribution_shift is not None else None,
+                    # Include top 3 membership weights for debugging/visualization
+                    "membership": {
+                        k: round(v, 4) for k, v in sorted(
+                            dynamics.soft_mode.membership.items(),
+                            key=lambda x: x[1],
+                            reverse=True
+                        )[:3]
+                    }
+                }
 
         # Add semiotic marker if received from Semantic Climate
         if self.pending_semiotic:

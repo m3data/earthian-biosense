@@ -5,9 +5,26 @@ can be identified and reprocessed if needed.
 """
 
 # Schema version - increment on breaking changes to session format
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 # Changelog:
+#
+# 1.1.0 (2025-12-19) - Movement-preserving classification
+#   - Added movement.py module with soft mode inference
+#   - New JSONL fields in phase object:
+#     - movement_annotation: how you arrived (e.g., "settling from heightened alertness")
+#     - movement_aware_label: composed label with movement context
+#     - mode_status: 'unknown', 'provisional', 'established'
+#     - dwell_time: seconds in current mode
+#     - acceleration_mag: second derivative of mode_score
+#     - soft_mode: weighted membership across all modes
+#   - Hysteresis-aware state transitions (entry != exit thresholds)
+#   - Terminology change: "vigilance" → "alertness"
+#     - "heightened vigilance" → "heightened alertness"
+#     - "subtle vigilance" → "subtle alertness"
+#     - "vigilant stillness" → "alert stillness"
+#   - Architecture adapted from semantic-climate-phase-space/src/basins.py (v0.3.0)
+#
 # 1.0.0 (2025-12-04) - Entrainment/coherence distinction
 #   - Renamed coh → ent (entrainment)
 #   - Renamed coh_label → ent_label

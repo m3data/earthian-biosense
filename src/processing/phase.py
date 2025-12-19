@@ -15,10 +15,23 @@ of the trajectory *through* the manifold, not a coordinate within it.
 
 from dataclasses import dataclass, field
 from collections import deque
+from typing import Optional
 import math
 import time
 
 from .hrv import HRVMetrics
+from .movement import (
+    SoftModeInference,
+    ModeHistory,
+    compute_soft_mode_membership,
+    detect_mode_with_hysteresis,
+    generate_movement_annotation,
+    compose_movement_aware_label,
+    detect_rupture_oscillation,
+    VELOCITY_THRESHOLD,
+    ACCELERATION_THRESHOLD,
+    SETTLED_THRESHOLD,
+)
 
 
 @dataclass
@@ -52,6 +65,25 @@ class PhaseDynamics:
     phase_label: str
     mode_score: float  # collapsed scalar for terminal UI
 
+    # === Movement-preserving classification (v1.1.0) ===
+    # Soft mode inference - weighted membership across modes
+    soft_mode: Optional[SoftModeInference] = None
+
+    # Movement annotation - HOW we arrived (e.g., "settling from heightened alertness")
+    movement_annotation: str = ""
+
+    # Composed label with movement context
+    movement_aware_label: str = ""
+
+    # Hysteresis state: 'unknown', 'provisional', 'established'
+    mode_status: str = "unknown"
+
+    # Dwell time in current mode (seconds)
+    dwell_time: float = 0.0
+
+    # Acceleration magnitude for movement annotation
+    acceleration_magnitude: float = 0.0
+
 
 # Default/empty dynamics for cold start
 EMPTY_DYNAMICS = PhaseDynamics(
@@ -76,6 +108,7 @@ class PhaseTrajectory:
     - Curvature (second derivative magnitude)
     - Stability (inverse of movement intensity)
     - History signature (path integral)
+    - Movement-preserving mode classification (v1.1.0)
     """
 
     def __init__(self, window_size: int = 30):
@@ -88,6 +121,12 @@ class PhaseTrajectory:
         self.states: deque[PhaseState] = deque(maxlen=window_size)
         self.cumulative_path_length: float = 0.0
         self._last_velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+        # Movement-preserving classification state (v1.1.0)
+        self.mode_history: ModeHistory = ModeHistory()
+        self._last_soft_inference: Optional[SoftModeInference] = None
+        self._last_mode_score: float = 0.0
+        self._mode_score_velocity: float = 0.0
 
     def append(self, metrics: HRVMetrics, timestamp: float | None = None) -> PhaseDynamics:
         """Add new state from HRV metrics, compute dynamics.
@@ -140,6 +179,17 @@ class PhaseTrajectory:
 
         if len(self.states) < 2:
             # Not enough history - return minimal dynamics
+            # Still compute soft mode for early feedback
+            soft_mode = compute_soft_mode_membership(
+                entrainment=metrics.entrainment,
+                breath_steady=metrics.breath_steady,
+                amp_norm=min(1.0, metrics.amplitude / 200),
+                volatility=metrics.rr_volatility,
+                previous_inference=self._last_soft_inference
+            )
+            self._last_soft_inference = soft_mode
+            self._last_mode_score = metrics.mode_score
+
             return PhaseDynamics(
                 timestamp=new_state.timestamp,
                 position=new_state.position,
@@ -150,7 +200,13 @@ class PhaseTrajectory:
                 transition_proximity=0.0,
                 history_signature=0.0,
                 phase_label="warming up",
-                mode_score=metrics.mode_score
+                mode_score=metrics.mode_score,
+                soft_mode=soft_mode,
+                movement_annotation="insufficient data",
+                movement_aware_label=soft_mode.primary_mode,
+                mode_status="unknown",
+                dwell_time=0.0,
+                acceleration_magnitude=0.0
             )
 
         # Get recent states for derivative computation
@@ -212,6 +268,46 @@ class PhaseTrajectory:
             new_state.position, velocity_magnitude, curvature, stability
         )
 
+        # === Movement-preserving classification (v1.1.0) ===
+
+        # Compute soft mode membership
+        amp_norm = min(1.0, metrics.amplitude / 200)
+        soft_mode = compute_soft_mode_membership(
+            entrainment=metrics.entrainment,
+            breath_steady=metrics.breath_steady,
+            amp_norm=amp_norm,
+            volatility=metrics.rr_volatility,
+            previous_inference=self._last_soft_inference
+        )
+
+        # Detect mode with hysteresis
+        detected_mode, mode_confidence, mode_meta = detect_mode_with_hysteresis(
+            soft_inference=soft_mode,
+            mode_history=self.mode_history,
+            timestamp=new_state.timestamp
+        )
+
+        # Compute mode_score velocity and acceleration for movement annotation
+        mode_score_velocity = (metrics.mode_score - self._last_mode_score) / dt1
+        mode_score_accel = (mode_score_velocity - self._mode_score_velocity) / dt1
+
+        # Generate movement annotation
+        movement_annotation = generate_movement_annotation(
+            velocity_magnitude=abs(mode_score_velocity),
+            acceleration_magnitude=mode_score_accel,
+            previous_mode=mode_meta.get('previous_mode'),
+            dwell_time=mode_meta.get('dwell_time', 0.0)
+        )
+
+        # Compose movement-aware label
+        movement_aware_label = compose_movement_aware_label(detected_mode, movement_annotation)
+
+        # Update history for next iteration
+        self.mode_history.append(detected_mode, mode_confidence, new_state.timestamp)
+        self._last_soft_inference = soft_mode
+        self._last_mode_score = metrics.mode_score
+        self._mode_score_velocity = mode_score_velocity
+
         return PhaseDynamics(
             timestamp=new_state.timestamp,
             position=new_state.position,
@@ -222,7 +318,13 @@ class PhaseTrajectory:
             transition_proximity=transition_proximity,
             history_signature=history_signature,
             phase_label=phase_label,
-            mode_score=metrics.mode_score  # keep original for backward compat
+            mode_score=metrics.mode_score,  # keep original for backward compat
+            soft_mode=soft_mode,
+            movement_annotation=movement_annotation,
+            movement_aware_label=movement_aware_label,
+            mode_status=mode_meta.get('state_status', 'unknown'),
+            dwell_time=mode_meta.get('dwell_time', 0.0),
+            acceleration_magnitude=abs(mode_score_accel)
         )
 
     def _infer_phase_label(
@@ -268,7 +370,7 @@ class PhaseTrajectory:
             elif ent > 0.3:
                 return "neutral dwelling"
             else:
-                return "vigilant stillness"
+                return "alert stillness"  # v1.1.0: "vigilant" -> "alert"
 
         # Default: transitional
         return "transitional"
@@ -292,6 +394,11 @@ class PhaseTrajectory:
         self.states.clear()
         self.cumulative_path_length = 0.0
         self._last_velocity = (0.0, 0.0, 0.0)
+        # Reset movement-preserving state (v1.1.0)
+        self.mode_history.clear()
+        self._last_soft_inference = None
+        self._last_mode_score = 0.0
+        self._mode_score_velocity = 0.0
 
     def compute_trajectory_coherence(self, lag: int = 5) -> float:
         """
