@@ -7,8 +7,8 @@ Connects to Polar H10 heart rate monitors via BLE, computes HRV metrics, and tra
 ## What It Does
 
 - **BLE connection** to Polar H10 (heart rate + RR intervals)
-- **HRV metrics**: amplitude, coherence (autocorrelation), breath rate estimation
-- **Phase space trajectory**: tracks movement through a 3D manifold (coherence, breath, amplitude)
+- **HRV metrics**: amplitude, entrainment (breath-heart coupling), breath rate estimation
+- **Phase space trajectory**: tracks movement through a 3D manifold (entrainment, breath, amplitude)
 - **Dynamics computation**: velocity, curvature, stability — not just where you are, but how you're moving
 - **Terminal UI**: real-time ASCII visualization
 - **JSONL export**: full trajectory data for post-session analysis
@@ -59,8 +59,8 @@ Each line contains:
   "rr": [640, 634, 637],
   "metrics": {
     "amp": 164,
-    "coh": 0.576,
-    "coh_label": "[coherent]",
+    "ent": 0.576,
+    "ent_label": "[entrained]",
     "breath": 6.2,
     "volatility": 0.0825,
     "mode": "settling",
@@ -73,7 +73,10 @@ Each line contains:
     "curvature": 0.047,
     "stability": 0.8672,
     "history_signature": 0.2292,
-    "phase_label": "settling into coherence"
+    "phase_label": "settling into coherence",
+    "coherence": 0.55,
+    "movement_annotation": "settling from heightened alertness",
+    "movement_aware_label": "settling · from heightened alertness"
   }
 }
 ```
@@ -98,19 +101,19 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    A[Polar H10] -->|BLE| B[RRi Buffer]
+    B -->|20 samples| C[HRV Metrics]
+    C --> D[Phase Trajectory]
+    D -->|30s window| E[Dynamics]
+    E --> F[Output]
+    F --> G[Terminal UI]
+    F --> H[JSONL]
+    F --> I[WebSocket]
 ```
-Polar H10 (BLE)
-    ↓
-RRi Buffer (~20 samples)
-    ↓
-HRV Metrics (amplitude, coherence, breath)
-    ↓
-Phase Trajectory (30s rolling window)
-    ↓
-Dynamics (velocity, curvature, stability)
-    ↓
-JSONL Export + Terminal UI
-```
+
+See [docs/overview.md](docs/overview.md) for detailed architecture.
 
 ## Requirements
 

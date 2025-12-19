@@ -51,14 +51,14 @@ This allows detection of patterns invisible to snapshot metrics:
 ### Metric Computation
 
 - **Amplitude**: HRV range (max - min RRi) - variability magnitude
-- **Coherence**: Autocorrelation-based rhythmic ordering (0-1)
+- **Entrainment**: Breath-heart phase coupling (autocorrelation-based, 0-1)
 - **Breath rate**: Estimated from RRi oscillation patterns
 - **Volatility**: Normalized instability measure
-- **Mode**: Autonomic state inference (alertness → coherence spectrum)
+- **Mode**: Autonomic state inference (alertness → settling → coherence)
 
 ### Phase Space Tracking
 
-- Maps metrics to 3D coordinates: (coherence, breath_normalized, amplitude_normalized)
+- Maps metrics to 3D coordinates: (entrainment, breath_normalized, amplitude_normalized)
 - Computes trajectory dynamics: velocity, curvature, stability
 - Labels trajectory segments based on movement patterns
 - Maintains history signature for accumulated complexity
@@ -71,44 +71,57 @@ This allows detection of patterns invisible to snapshot metrics:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph device["Polar H10"]
+        ble_device["BLE Device<br/>Heart Rate + RR Intervals"]
+    end
+
+    subgraph ble_layer["BLE Layer — src/ble/"]
+        scanner["scanner.py<br/>Device discovery"]
+        h10_client["h10_client.py<br/>Connection management"]
+        parser["parser.py<br/>RR interval extraction"]
+    end
+
+    subgraph processing["Processing Layer — src/processing/"]
+        hrv["hrv.py<br/>Amplitude, entrainment,<br/>breath, mode"]
+        phase["phase.py<br/>Position, velocity,<br/>curvature, stability"]
+        movement["movement.py<br/>Soft mode, hysteresis,<br/>movement annotation"]
+    end
+
+    subgraph output["Output Layer"]
+        terminal["Terminal UI<br/>src/app.py"]
+        logger["Session Logger<br/>JSONL export"]
+        websocket["WebSocket API<br/>src/api/websocket.py"]
+    end
+
+    subgraph storage["Storage & Downstream"]
+        sessions["sessions/*.jsonl<br/>Local storage"]
+        clients["WebSocket Clients<br/>Semantic Climate,<br/>Viz Replay"]
+    end
+
+    ble_device -->|"HR + RRi packets"| scanner
+    scanner --> h10_client
+    h10_client --> parser
+    parser -->|"Raw RRi stream"| hrv
+    hrv -->|"HRV metrics"| phase
+    phase -->|"Trajectory dynamics"| movement
+    movement -->|"Classified state"| terminal
+    movement --> logger
+    movement --> websocket
+    logger --> sessions
+    websocket -->|"1Hz streaming"| clients
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Polar H10                              │
-│                    (BLE Device)                             │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ Heart Rate + RR Intervals
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    BLE Layer                                │
-│  src/ble/                                                   │
-│  ├── scanner.py      Device discovery                       │
-│  ├── h10_client.py   Connection management                  │
-│  └── parser.py       RR interval extraction                 │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ Raw RRi stream
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Processing Layer                            │
-│  src/processing/                                            │
-│  ├── hrv.py          Metric computation                     │
-│  │                   (amplitude, coherence, breath, mode)   │
-│  └── phase.py        Phase space trajectory                 │
-│                      (position, velocity, curvature,        │
-│                       stability, labels)                    │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ Metrics + Phase data
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Output Layer                              │
-│  src/app.py              Terminal UI + JSONL logging        │
-│  src/api/websocket.py    Real-time streaming API            │
-└─────────────────────────────────────────────────────────────┘
-                          │
-              ┌───────────┴───────────┐
-              ▼                       ▼
-    sessions/*.jsonl          WebSocket clients
-    (local storage)           (Semantic Climate)
-```
+
+### Data Flow Summary
+
+| Stage | Input | Output | Rate |
+|-------|-------|--------|------|
+| BLE | Bluetooth packets | HR, RRi arrays | ~1Hz (per heartbeat) |
+| HRV | Rolling RRi window (20 samples) | Amplitude, entrainment, breath, mode | Every packet |
+| Phase | HRV metrics | Position, velocity, curvature, stability | 1Hz |
+| Movement | Phase dynamics | Soft mode, movement annotation, labels | 1Hz |
+| Output | Classified state | Terminal, JSONL, WebSocket | 1Hz |
 
 ## Key Concepts
 
@@ -116,7 +129,7 @@ This allows detection of patterns invisible to snapshot metrics:
 
 The autonomic state is represented as a point in 3D space:
 
-- **X-axis (Coherence)**: 0 = chaotic/low coherence, 1 = high rhythmic coherence
+- **X-axis (Entrainment)**: 0 = low breath-heart coupling, 1 = high rhythmic synchronization
 - **Y-axis (Breath)**: Normalized breath rate (0 = slow, 1 = fast)
 - **Z-axis (Amplitude)**: Normalized HRV amplitude (0 = contracted, 1 = expanded)
 
@@ -134,11 +147,11 @@ Labels emerge from trajectory dynamics, not arbitrary thresholds:
 
 | Label | Signature | Meaning |
 |-------|-----------|---------|
-| `alert stillness` | Low velocity, low-mid coherence | Watchful calm without release |
+| `alert stillness` | Low velocity, low-mid entrainment | Watchful calm without release |
 | `active transition` | High velocity | Moving between states |
 | `inflection (seeking)` | High curvature | Searching for new configuration |
-| `settling into coherence` | Decreasing velocity, rising coherence | Approaching coherent state |
-| `coherent dwelling` | Low velocity, high coherence | Stable in flow state |
+| `settling into coherence` | Decreasing velocity, rising entrainment | Approaching coherent state |
+| `coherent dwelling` | Low velocity, high entrainment, stable | Dwelling in flow state |
 
 ### Mode Labels
 
@@ -163,8 +176,8 @@ Session data is stored as JSONL (one JSON object per line):
   "rr": [640, 634, 637],
   "metrics": {
     "amp": 164,
-    "coh": 0.576,
-    "coh_label": "[coherent]",
+    "ent": 0.576,
+    "ent_label": "[entrained]",
     "breath": 6.2,
     "volatility": 0.0825,
     "mode": "settling",
@@ -177,7 +190,10 @@ Session data is stored as JSONL (one JSON object per line):
     "curvature": 0.047,
     "stability": 0.8672,
     "history_signature": 0.2292,
-    "phase_label": "settling into coherence"
+    "phase_label": "settling into coherence",
+    "coherence": 0.55,
+    "movement_annotation": "settling from heightened alertness",
+    "movement_aware_label": "settling · from heightened alertness"
   }
 }
 ```
