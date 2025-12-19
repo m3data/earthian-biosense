@@ -32,7 +32,7 @@ Neither source is privileged. Both constrain the other:
 - Strange trajectory patterns prompt phenomenological inquiry ("What was happening here?")
 - Phenomenological observations prompt pattern search ("What does that look like in the data?")
 
-### Example: Discovering "Vigilant Stillness"
+### Example: Discovering "Alert Stillness"
 
 **Observation (third-person)**: Sessions showed extended periods of high stability (~1.0), low-moderate coherence, contracted amplitude. The trajectory was essentially frozen - not moving through phase space.
 
@@ -40,9 +40,9 @@ Neither source is privileged. Both constrain the other:
 
 **First-person report**: "I was paying close attention but not relaxed. Alert. Watching. Processing something. Not stressed exactly, but not at ease either."
 
-**Refinement**: This isn't "calm" (which might show higher coherence) or "stressed" (which might show higher volatility). It's a third thing - stable vigilance. The body holding still while attention is engaged.
+**Refinement**: This isn't "calm" (which might show higher coherence) or "stressed" (which might show higher volatility). It's a third thing - stable alertness. The body holding still while attention is engaged.
 
-**Label**: "vigilant stillness"
+**Label**: "alert stillness"
 
 ### Example: Discovering "Inflection (Seeking)"
 
@@ -66,7 +66,7 @@ Neither source is privileged. Both constrain the other:
 
 **First-person correlation**: Session beginning, body hasn't settled, signal quality establishing.
 
-### Vigilant Stillness
+### Alert Stillness
 
 **Pattern**:
 
@@ -181,11 +181,11 @@ Neither source is privileged. Both constrain the other:
 - Coherence 0.2-0.5
 - Low velocity, low curvature
 
-**Grounding**: Stable but not particularly coherent or vigilant - just settled in a neutral zone.
+**Grounding**: Stable but not particularly coherent or alert - just settled in a neutral zone.
 
 **First-person correlation**: "Baseline," "nothing particular," "just being"
 
-**Key insight**: Not all dwelling is coherent or vigilant - there's a middle ground.
+**Key insight**: Not all dwelling is coherent or alert - there's a middle ground.
 
 ## What's Not Yet Labeled
 
@@ -246,7 +246,7 @@ Despite their provisional status, proto-labels are useful for:
 
 1. **Real-time orientation**: Rough sense of what's happening
 2. **Pattern recognition**: Noticing recurrent signatures
-3. **Hypothesis generation**: "Is vigilant stillness always correlated with X?"
+3. **Hypothesis generation**: "Is alert stillness always correlated with X?"
 4. **Communication**: Shared vocabulary for discussing sessions
 
 They should not be used for:

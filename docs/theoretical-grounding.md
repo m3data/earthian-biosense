@@ -96,7 +96,7 @@ Each moment maps to a point. Over time, these points trace a **trajectory**.
 
 ### Attractors
 
-Dynamical systems tend toward certain regions of state space called attractors. A "vigilant" attractor basin might be characterized by moderate amplitude, low coherence, stable position. A "coherent flow" attractor might show high coherence, rhythmic breath coupling, expanded amplitude.
+Dynamical systems tend toward certain regions of state space called attractors. An "alert" attractor basin might be characterized by moderate amplitude, low coherence, stable position. A "coherent flow" attractor might show high coherence, rhythmic breath coupling, expanded amplitude.
 
 The interesting question isn't just "which attractor are you in?" but "how are you moving between them?"
 
@@ -131,7 +131,7 @@ EBS extends this tradition by:
 
 Rather than labeling states by thresholds (coherence > 0.5 = "coherent"), EBS labels based on *how you're moving*:
 
-- **Vigilant stillness**: Stable but not coherent - the system is holding, watchful
+- **Alert stillness**: Stable but not coherent - the system is holding, watchful
 - **Inflection (seeking)**: High curvature, the trajectory is turning sharply - searching for new configuration
 - **Settling into coherence**: Decreasing velocity while approaching coherent region - landing
 - **Coherent dwelling**: Low velocity, high coherence - stable in flow
@@ -176,7 +176,7 @@ EBS proto-labels emerged through this process - early observations of trajectory
 
 Karen Barad's concept of intra-action reminds us that measurement isn't neutral observation - the instrument participates in constituting what is measured. The choice to track trajectories rather than snapshots isn't just technical; it's an ontological commitment that shapes what becomes visible.
 
-EBS makes certain patterns seeable (vigilant holding, seeking, settling) that were previously invisible. This is a Baradian "cut" - an agential intervention that configures what can be known.
+EBS makes certain patterns seeable (alert holding, seeking, settling) that were previously invisible. This is a Baradian "cut" - an agential intervention that configures what can be known.
 
 ## Summary
 

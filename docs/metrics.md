@@ -12,7 +12,7 @@ EBS computes five core metrics from the RR interval stream:
 | **Coherence (coh)** | 0.0-1.0 | Rhythmic ordering - how organized the variability pattern is |
 | **Breath rate** | ~3-25 bpm | Estimated respiratory rate from RRi oscillation |
 | **Volatility** | 0.0-1.0 | Normalized instability - how erratic the signal is |
-| **Mode** | categorical | Autonomic state inference - vigilance to coherence spectrum |
+| **Mode** | categorical | Autonomic state inference - alertness to coherence spectrum |
 
 ---
 
@@ -33,7 +33,7 @@ Unlike RMSSD or SDNN, amplitude captures the *span* of variability rather than a
 A contracted amplitude (low variability range) often indicates:
 
 - Sympathetic dominance
-- Stress, vigilance, or cognitive load
+- Stress, alertness, or cognitive load
 - Reduced parasympathetic influence
 
 An expanded amplitude indicates:
@@ -164,7 +164,7 @@ Volatility captures something different from amplitude. A signal can have:
 
 - High amplitude, low volatility: Large but smooth oscillations (coherent)
 - High amplitude, high volatility: Large and erratic swings (unstable)
-- Low amplitude, low volatility: Flat, contracted (vigilant stillness)
+- Low amplitude, low volatility: Flat, contracted (alert stillness)
 - Low amplitude, high volatility: Small but erratic (agitated but contracted)
 
 ### Interpretation
@@ -185,14 +185,14 @@ Volatility is one input to the mode inference algorithm. High volatility during 
 
 ### What It Is
 
-An inferred autonomic state based on the pattern of other metrics. Mode represents a position on the vigilance-to-coherence spectrum.
+An inferred autonomic state based on the pattern of other metrics. Mode represents a position on the alertness-to-coherence spectrum.
 
 ### Modes
 
 | Mode | Signature | Interpretation |
 |------|-----------|----------------|
-| `heightened vigilance` | Low coherence, low amplitude, possibly elevated HR | Sympathetic activation, stress, alertness |
-| `subtle vigilance` | Low-moderate coherence, moderate amplitude, stable | Watchful but not activated - attentive calm |
+| `heightened alertness` | Low coherence, low amplitude, possibly elevated HR | Sympathetic activation, stress |
+| `subtle alertness` | Low-moderate coherence, moderate amplitude, stable | Watchful but not activated - attentive calm |
 | `transitional` | Mixed signals, moderate volatility | Between states, no clear pattern |
 | `settling` | Rising coherence or amplitude, decreasing volatility | Moving toward parasympathetic dominance |
 | `emerging coherence` | Coherence rising above threshold, stabilizing | Coherent pattern establishing |
