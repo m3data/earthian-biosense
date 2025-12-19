@@ -273,8 +273,8 @@ function drawLegend(p) {
   let lineHeight = 18;
 
   let modes = [
-    ['heightened vigilance', 'heightened'],
-    ['subtle vigilance', 'subtle vigilance'],
+    ['heightened alertness', 'heightened'],
+    ['subtle alertness', 'subtle alertness'],
     ['transitional', 'transitional'],
     ['settling', 'settling'],
     ['emerging coherence', 'emerging'],

@@ -13,7 +13,7 @@ The data captures:
 - Curvature (how sharply the trajectory is bending)
 - Stability (how settled vs. transitional)
 
-This allows detection of patterns invisible to snapshot metrics: vigilant holding, seeking behavior, settling into coherence, inflection points.
+This allows detection of patterns invisible to snapshot metrics: alert holding, seeking behavior, settling into coherence, inflection points.
 
 ## Data Schema
 
@@ -50,21 +50,21 @@ Each JSONL line contains:
 | Label | Signature | Somatic Meaning |
 |-------|-----------|-----------------|
 | `warming up` | Insufficient data | Session beginning, buffer filling |
-| `vigilant stillness` | Low velocity, low curvature, low-mid coherence | Body is stable but watchful - alert calm without release |
+| `alert stillness` | Low velocity, low curvature, low-mid coherence | Body is stable but watchful - alert calm without release |
 | `active transition` | High velocity | Moving through phase space - something is shifting |
 | `inflection (seeking)` | High curvature, not from coherent region | Turning point, searching for new configuration |
 | `inflection (from coherence)` | High curvature, leaving coherent region | Dropping out of coherent state |
 | `settling into coherence` | Low velocity, approaching high coherence | Beginning to stabilize in coherent region |
 | `coherent dwelling` | Low velocity, low curvature, high coherence | Stable in coherent state - flow |
 | `flowing coherence` | Moderate velocity, high coherence | Moving within coherent region |
-| `neutral dwelling` | Low velocity, mid coherence | Stable but not particularly coherent or vigilant |
+| `neutral dwelling` | Low velocity, mid coherence | Stable but not particularly coherent or alert |
 
 ## Mode Labels (autonomic inference)
 
 | Mode | Meaning |
 |------|---------|
-| `heightened vigilance` | Sympathetic activation, alert, possibly anxious |
-| `subtle vigilance` | Mild watchfulness, not relaxed but not activated |
+| `heightened alertness` | Sympathetic activation, alert, possibly anxious |
+| `subtle alertness` | Mild watchfulness, not relaxed but not activated |
 | `transitional` | Between states, no clear mode |
 | `settling` | Moving toward parasympathetic, calming |
 | `emerging coherence` | Coherence beginning to establish |
@@ -78,22 +78,22 @@ Don't interpret single data points. Look for:
 
 - **Phases**: How does the session divide into distinct periods?
 - **Transitions**: What triggers movement between states?
-- **Patterns**: Does vigilance return? Does coherence sustain or collapse?
+- **Patterns**: Does alertness return? Does coherence sustain or collapse?
 - **Trajectory shape**: Wandering? Settling? Oscillating? Stuck?
 
 ### Key Questions to Answer
 
 1. What was the overall arc of the session?
 2. Were there periods of sustained coherence? How long?
-3. Were there vigilant plateaus? What might they indicate?
+3. Were there alert plateaus? What might they indicate?
 4. What phase labels dominated? What does that suggest?
 5. How did the session end compared to how it began?
 
 ### Somatic Significance
 
-- **Long vigilant plateaus** (stability ~1.0, low coherence, "subtle vigilance"): Body is holding, processing, or protecting. Not relaxed but not activated. Often indicates cognitive load or emotional processing.
+- **Long alert plateaus** (stability ~1.0, low coherence, "subtle alertness"): Body is holding, processing, or protecting. Not relaxed but not activated. Often indicates cognitive load or emotional processing.
 - **Inflection (seeking)**: The system is at a turning point, looking for a new attractor basin. Something wants to shift.
-- **Coherence that doesn't hold**: Brief touches of coherence that collapse back to vigilance may indicate unresolved activation or difficulty releasing.
+- **Coherence that doesn't hold**: Brief touches of coherence that collapse back to alertness may indicate unresolved activation or difficulty releasing.
 - **Low amplitude**: Contracted variability - the system isn't oscillating freely.
 - **High amplitude + high coherence**: Full expression - the heart is varying rhythmically with large swings.
 
@@ -128,7 +128,7 @@ Invite the participant to sense into the following dimensions:
 
 #### 5. Attention and Awareness
 
-- Was attention narrow, wide, searching, drifting, absorbed, vigilant?
+- Was attention narrow, wide, searching, drifting, absorbed, alert?
 - Did attention feel self-generated or pulled?
 
 #### 6. Imaginal or Symbolic Activity
@@ -157,7 +157,7 @@ Update or nuance the interpretation by integrating data-driven inferences, first
 
 #### C. Identify Ontological Patterns
 
-- Does the report reflect vigilance, releasing, thresholding, oscillation, surrender, coherence, seeking?
+- Does the report reflect alertness, releasing, thresholding, oscillation, surrender, coherence, seeking?
 - Does the participant’s inner state correspond to or challenge the inferred modes and phase labels?
 
 #### D. Offer Integrative Meaning
@@ -169,7 +169,7 @@ The final interpretation should fold both streams into a cohesive, field-aware n
 - Don't reduce to "good" or "bad" - all states have meaning
 - Don't diagnose medical conditions
 - Don't ignore context - the same data means different things in different situations
-- Don't treat coherence as the only goal - vigilance serves protective functions
+- Don't treat coherence as the only goal - alertness serves protective functions
 
 ## Output Format
 
@@ -185,7 +185,7 @@ When given session data, provide:
 
 ## Example Interpretation Fragment
 
-> "The session shows an initial settling period (00:27-00:28) with brief coherence touches, followed by a 12-minute vigilant plateau (00:30-00:45) characterized by stability values near 1.0, low amplitude (30-70ms), and persistent 'subtle vigilance' mode. This plateau signature suggests sustained attention without parasympathetic release - the body holding still while processing something. The late session (00:45-00:47) shows increased 'inflection (seeking)' labels, indicating the system searching for a new configuration. The session ends in 'active transition' - movement without resolution."
+> "The session shows an initial settling period (00:27-00:28) with brief coherence touches, followed by a 12-minute alert plateau (00:30-00:45) characterized by stability values near 1.0, low amplitude (30-70ms), and persistent 'subtle alertness' mode. This plateau signature suggests sustained attention without parasympathetic release - the body holding still while processing something. The late session (00:45-00:47) shows increased 'inflection (seeking)' labels, indicating the system searching for a new configuration. The session ends in 'active transition' - movement without resolution."
 
 ## Important Context
 

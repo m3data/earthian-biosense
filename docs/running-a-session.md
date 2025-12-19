@@ -109,7 +109,7 @@ These observations become crucial for post-session mutual constraint.
 
 ### Don't Optimize
 
-Resist the urge to "perform" for the data. The goal isn't to achieve coherence - it's to observe what actually happens. Vigilant stillness is as interesting as coherent dwelling.
+Resist the urge to "perform" for the data. The goal isn't to achieve coherence - it's to observe what actually happens. Alert stillness is as interesting as coherent dwelling.
 
 ## Ending a Session
 
@@ -166,7 +166,7 @@ Useful questions:
 - What was the dominant mode/phase label?
 - Were there distinct phases? What marked the transitions?
 - Did coherence appear? Sustain or collapse?
-- Were there vigilant plateaus? What was happening then?
+- Were there alert plateaus? What was happening then?
 - How does the trajectory relate to what you were doing?
 
 ### 4. Correlate with Context
@@ -245,7 +245,7 @@ EBS streaming to Semantic Climate for real-time cross-modal coherence detection.
 1. **Consistency helps** - same time, same conditions reveals patterns
 2. **Don't over-interpret single sessions** - look for trends
 3. **Use it as a mirror, not a judge** - the data reflects, it doesn't evaluate
-4. **Vigilance is information** - not a failure to achieve coherence
+4. **Alertness is information** - not a failure to achieve coherence
 
 ### For EECP Research
 

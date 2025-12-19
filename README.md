@@ -40,7 +40,7 @@ Labels emerge from trajectory dynamics, not just thresholds:
 | Label | Meaning |
 |-------|---------|
 | `warming up` | Insufficient data |
-| `vigilant stillness` | Stable but low coherence — watchful calm |
+| `alert stillness` | Stable but low coherence — watchful calm |
 | `active transition` | Moving through phase space |
 | `inflection (seeking)` | High curvature, turning point, seeking coherence |
 | `inflection (from coherence)` | High curvature, dropping from coherent state |

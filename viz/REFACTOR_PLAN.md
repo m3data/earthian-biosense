@@ -65,8 +65,8 @@ Replace clinical colors with grounded, body-resonant tones.
 
 **Current MODE_COLORS:**
 ```js
-'heightened vigilance': [255, 120, 80],   // alert orange
-'subtle vigilance': [220, 180, 100],      // yellow
+'heightened alertness': [255, 120, 80],   // alert orange
+'subtle alertness': [220, 180, 100],      // yellow
 'settling': [100, 160, 200],              // clinical blue
 'transitional': [180, 150, 200],          // purple
 'emerging coherence': [120, 200, 160],    // mint
@@ -77,7 +77,7 @@ Replace clinical colors with grounded, body-resonant tones.
 **Proposed EARTH_PALETTE:**
 ```js
 // No state is "better" — just different textures of becoming
-'vigilant stillness': [180, 140, 100],    // warm sand
+'alert stillness': [180, 140, 100],       // warm sand
 'active transition': [200, 120, 90],      // terracotta
 'settling into entrainment': [160, 130, 110], // clay
 'entrained dwelling': [170, 150, 120],    // amber

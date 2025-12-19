@@ -35,7 +35,7 @@ The key shift: **where you are matters less than how you're moving**.
 
 This allows detection of patterns invisible to snapshot metrics:
 
-- Vigilant holding (stable but not relaxed)
+- Alert holding (stable but not relaxed)
 - Seeking behavior (high curvature, searching for new configuration)
 - Settling into coherence (approaching stable coherent state)
 - Inflection points (trajectory turning sharply)
@@ -54,7 +54,7 @@ This allows detection of patterns invisible to snapshot metrics:
 - **Coherence**: Autocorrelation-based rhythmic ordering (0-1)
 - **Breath rate**: Estimated from RRi oscillation patterns
 - **Volatility**: Normalized instability measure
-- **Mode**: Autonomic state inference (vigilance → coherence spectrum)
+- **Mode**: Autonomic state inference (alertness → coherence spectrum)
 
 ### Phase Space Tracking
 
@@ -134,7 +134,7 @@ Labels emerge from trajectory dynamics, not arbitrary thresholds:
 
 | Label | Signature | Meaning |
 |-------|-----------|---------|
-| `vigilant stillness` | Low velocity, low-mid coherence | Watchful calm without release |
+| `alert stillness` | Low velocity, low-mid coherence | Watchful calm without release |
 | `active transition` | High velocity | Moving between states |
 | `inflection (seeking)` | High curvature | Searching for new configuration |
 | `settling into coherence` | Decreasing velocity, rising coherence | Approaching coherent state |
@@ -146,8 +146,8 @@ Autonomic mode inference based on metric patterns:
 
 | Mode | Autonomic Signature |
 |------|---------------------|
-| `heightened vigilance` | Sympathetic activation |
-| `subtle vigilance` | Mild watchfulness |
+| `heightened alertness` | Sympathetic activation |
+| `subtle alertness` | Mild watchfulness |
 | `transitional` | Between states |
 | `settling` | Moving toward parasympathetic |
 | `emerging coherence` | Coherence beginning to establish |

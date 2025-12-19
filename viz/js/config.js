@@ -85,14 +85,14 @@ export const PARTICIPANT_COLORS = {
  * No state is "better" — just different textures of becoming.
  *
  * Wider hue range for legibility while staying grounded:
- * - Vigilance: warm oranges/terracotta
+ * - Alertness: warm oranges/terracotta
  * - Transitional: muted rose/mauve
  * - Settling: sage/moss greens
  * - Coherence: soft teals/slate blues
  */
 export const MODE_COLORS = {
-  'heightened vigilance': [205, 110, 70],   // burnt orange — active, alert
-  'subtle vigilance': [195, 140, 95],       // amber ochre — attending
+  'heightened alertness': [205, 110, 70],   // burnt orange — active, alert
+  'subtle alertness': [195, 140, 95],       // amber ochre — attending
   'transitional': [175, 130, 140],          // dusty rose — moving between
   'settling': [130, 155, 130],              // sage moss — easing down
   'emerging coherence': [115, 155, 155],    // soft teal — gathering
