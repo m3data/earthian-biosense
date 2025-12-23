@@ -218,7 +218,6 @@ class WebSocketServer:
         """
         if not self.clients:
             return
-
         message = {
             "type": "phase",
             "ts": timestamp.isoformat(),
