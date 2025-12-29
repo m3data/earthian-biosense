@@ -1,0 +1,481 @@
+{
+  "exported_at": "2025-12-14T08:49:13.211Z",
+  "country": "Bidjigal Country / Sydney Basin",
+  "meaningful_kin": [
+    {
+      "common_name": "",
+      "scientific_name": "Anthracophyllum archeri",
+      "taxon_group": "fungi",
+      "family": "Marasmiaceae",
+      "notes": "wonder with life",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Australian Brush-turkey",
+      "scientific_name": "Alectura lathami",
+      "taxon_group": "fauna",
+      "family": "Megapodiidae",
+      "notes": "",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Australian Magpie",
+      "scientific_name": "Gymnorhina tibicen",
+      "taxon_group": "fauna",
+      "family": "Artamidae",
+      "notes": "Reverence",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Australian Pelican",
+      "scientific_name": "Pelecanus conspicillatus",
+      "taxon_group": "fauna",
+      "family": "Pelecanidae",
+      "notes": "Elegance",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Australian Raven",
+      "scientific_name": "Corvus coronoides",
+      "taxon_group": "fauna",
+      "family": "Corvidae",
+      "notes": "Threshold guardians",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Black Nightshade",
+      "scientific_name": "Solanum nigrum",
+      "taxon_group": "flora",
+      "family": "Solanaceae",
+      "notes": "oh you again",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Broad-leaved Scribbly Gum",
+      "scientific_name": "Eucalyptus haemastoma",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "notice when going on walks",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Bull Shark",
+      "scientific_name": "Carcharhinus leucas",
+      "taxon_group": "fauna",
+      "family": "Carcharhinidae",
+      "notes": "I know you're around when I'm surfing",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Caley's Grevillea",
+      "scientific_name": "Grevillea caleyi",
+      "taxon_group": "flora",
+      "family": "Proteaceae",
+      "notes": "You remind me of sweetness",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Camphor Laurel",
+      "scientific_name": "Cinnamomum camphora",
+      "taxon_group": "flora",
+      "family": "Lauraceae",
+      "notes": "All around our place and in our backyard. Dominance through strength.",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Cat",
+      "scientific_name": "Felis catus",
+      "taxon_group": "fauna",
+      "family": "Felidae",
+      "notes": "Observant",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Christmas Bush",
+      "scientific_name": "Ceratopetalum gummiferum",
+      "taxon_group": "flora",
+      "family": "Cunoniaceae",
+      "notes": "Oh hello",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Coast Banksia",
+      "scientific_name": "Banksia integrifolia",
+      "taxon_group": "flora",
+      "family": "Proteaceae",
+      "notes": "Friend on the street, holder of whispers",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Common Brushtail Possum",
+      "scientific_name": "Trichosurus vulpecula",
+      "taxon_group": "fauna",
+      "family": "Phalangeridae",
+      "notes": "Cheeky buggers eating our oranges and mangoes",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Common Eastern Froglet",
+      "scientific_name": "Crinia signifera",
+      "taxon_group": "fauna",
+      "family": "Myobatrachidae",
+      "notes": "Hello there mate",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Common Ground-fern",
+      "scientific_name": "Calochlaena dubia",
+      "taxon_group": "flora",
+      "family": "Dicksoniaceae",
+      "notes": "Make me feel cool",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Common Ringtail Possum",
+      "scientific_name": "Pseudocheirus peregrinus",
+      "taxon_group": "fauna",
+      "family": "Pseudocheiridae",
+      "notes": "Running across the powerlines and doing their thang at night",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Copper-tailed Skink",
+      "scientific_name": "Ctenotus taeniolatus",
+      "taxon_group": "fauna",
+      "family": "Scincidae",
+      "notes": "You little fellas. Sun bathing",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Cumberland Land Snail",
+      "scientific_name": "Sauroconcha corneovirens",
+      "taxon_group": "fauna",
+      "family": "Camaenidae",
+      "notes": "Slow wisdom and patience. Just chill bro.",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Dark-flecked Garden Sunskink",
+      "scientific_name": "Lampropholis delicata",
+      "taxon_group": "fauna",
+      "family": "Scincidae",
+      "notes": "Scurrying around the backyard. Giggling with the kids.",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Eastern Blue-tongue",
+      "scientific_name": "Tiliqua scincoides",
+      "taxon_group": "fauna",
+      "family": "Scincidae",
+      "notes": "Strength and care",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "European Honey Bee",
+      "scientific_name": "Apis (Apis) mellifera",
+      "taxon_group": "fauna",
+      "family": "Apidae",
+      "notes": "We need you",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Fly Agaric",
+      "scientific_name": "Amanita muscaria",
+      "taxon_group": "fungi",
+      "family": "Amanitaceae",
+      "notes": "Fancy seeing you around here",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Forest Red Gum",
+      "scientific_name": "Eucalyptus tereticornis",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "Shelter and safety",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Fox",
+      "scientific_name": "Vulpes vulpes",
+      "taxon_group": "fauna",
+      "family": "Canidae",
+      "notes": "You killed my chickens",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Galah",
+      "scientific_name": "Eolophus roseicapilla",
+      "taxon_group": "fauna",
+      "family": "Cacatuidae",
+      "notes": "Curious kin",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Green Grevillea",
+      "scientific_name": "Grevillea mucronulata",
+      "taxon_group": "flora",
+      "family": "Proteaceae",
+      "notes": "Natures brilliance",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Hairpin Banksia",
+      "scientific_name": "Banksia spinulosa",
+      "taxon_group": "flora",
+      "family": "Proteaceae",
+      "notes": "You are flair and sorrow",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Jacaranda",
+      "scientific_name": "Jacaranda mimosifolia",
+      "taxon_group": "flora",
+      "family": "Bignoniaceae",
+      "notes": "Photos with the family and springtime joy",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Lantana",
+      "scientific_name": "Lantana camara",
+      "taxon_group": "flora",
+      "family": "Verbenaceae",
+      "notes": "Oh you get in the way sometimes don't ya",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Laughing Kookaburra",
+      "scientific_name": "Dacelo (Dacelo) novaeguineae",
+      "taxon_group": "fauna",
+      "family": "Alcedinidae",
+      "notes": "Remind me to not take life too seriously",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Lilly Pilly",
+      "scientific_name": "Syzygium smithii",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "Elder Lilly Pilly has guided me in life",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Pacific Black Duck",
+      "scientific_name": "Anas (Anas) superciliosa",
+      "taxon_group": "fauna",
+      "family": "Anatidae",
+      "notes": "Kids shouldn't feed you bread",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Paper Bark",
+      "scientific_name": "Melaleuca decora",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "The wisdom of time and shedding identities",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "",
+      "scientific_name": "Psilocybe ceres",
+      "taxon_group": "fungi",
+      "family": "Strophariaceae",
+      "notes": "Oh don't I wanna see and eat you",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Rainbow Lorikeet",
+      "scientific_name": "Trichoglossus moluccanus",
+      "taxon_group": "fauna",
+      "family": "Psittacidae",
+      "notes": "Eating our apples every season, having parties around the neighbourhood",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Sallow Wattle",
+      "scientific_name": "Acacia longifolia",
+      "taxon_group": "flora",
+      "family": "Fabaceae",
+      "notes": "Sacred cycles",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Saw Old-man Banksia",
+      "scientific_name": "Banksia serrata",
+      "taxon_group": "flora",
+      "family": "Proteaceae",
+      "notes": "Make me smile",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Scurvy Weed",
+      "scientific_name": "Commelina cyanea",
+      "taxon_group": "flora",
+      "family": "Commelinaceae",
+      "notes": "Makes potions, add to salads, boost immune system",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Sydney Blue Gum",
+      "scientific_name": "Eucalyptus saligna",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "Tall and proud",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Sydney Peppermint",
+      "scientific_name": "Eucalyptus piperita",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "Make me feel at home",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Sydney Red Gum",
+      "scientific_name": "Angophora costata",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "Walks with kids and the fam, joy and calm ",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Tawny Frogmouth",
+      "scientific_name": "Podargus strigoides",
+      "taxon_group": "fauna",
+      "family": "Podargidae",
+      "notes": "Wonder and wisdom",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Turpentine",
+      "scientific_name": "Syncarpia glomulifera",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": "You held me when I was a boy",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Water Dragon",
+      "scientific_name": "Intellagama lesueurii",
+      "taxon_group": "fauna",
+      "family": "Agamidae",
+      "notes": "We had some fun together when I was a young lad",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "Wedge-tailed Eagle",
+      "scientific_name": "Aquila (Uroaetus) audax",
+      "taxon_group": "fauna",
+      "family": "Accipitridae",
+      "notes": "You help me see",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "White Shark",
+      "scientific_name": "Carcharodon carcharias",
+      "taxon_group": "fauna",
+      "family": "Lamnidae",
+      "notes": "Close encounters, vigilance",
+      "niche_affinities": [],
+      "qualities": []
+    },
+    {
+      "common_name": "White-bellied Sea-eagle",
+      "scientific_name": "Haliaeetus (Pontoaetus) leucogaster",
+      "taxon_group": "fauna",
+      "family": "Accipitridae",
+      "notes": "You've let me know when the sharks are around and I'm alive because of your warnings",
+      "niche_affinities": [],
+      "qualities": []
+    }
+  ],
+  "maybe_kin": [
+    {
+      "common_name": "Rough-barked Apple",
+      "scientific_name": "Angophora floribunda",
+      "taxon_group": "flora",
+      "family": "Myrtaceae",
+      "notes": ""
+    },
+    {
+      "common_name": "Sacred Kingfisher",
+      "scientific_name": "Todiramphus (Todiramphus) sanctus",
+      "taxon_group": "fauna",
+      "family": "Alcedinidae",
+      "notes": ""
+    },
+    {
+      "common_name": "Sickle Wattle",
+      "scientific_name": "Acacia falcata",
+      "taxon_group": "flora",
+      "family": "Fabaceae",
+      "notes": ""
+    },
+    {
+      "common_name": "White-faced Heron",
+      "scientific_name": "Egretta novaehollandiae",
+      "taxon_group": "fauna",
+      "family": "Ardeidae",
+      "notes": ""
+    },
+    {
+      "common_name": "White-necked Heron",
+      "scientific_name": "Ardea pacifica",
+      "taxon_group": "fauna",
+      "family": "Ardeidae",
+      "notes": ""
+    }
+  ],
+  "summary": {
+    "total_kin": 48,
+    "total_maybe": 5,
+    "total_reviewed": 53,
+    "total_available": 600
+  }
+}

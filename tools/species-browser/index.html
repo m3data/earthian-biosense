@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Species Browser — Chimera Seed Vocabulary</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a1a;
+            --bg-card: #2a2a2a;
+            --text-primary: #e8e4dc;
+            --text-secondary: #a09888;
+            --accent-kin: #7a9e7a;
+            --accent-maybe: #9e9a7a;
+            --accent-skip: #6a6a6a;
+            --border: #3a3a3a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            max-width: 600px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .acknowledgment {
+            font-style: italic;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            padding: 1rem;
+            border-left: 2px solid var(--border);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .filter-btn.active {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+
+        .species-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .species-image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: var(--bg-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        .species-image.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 3rem;
+        }
+
+        .common-name {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .scientific-name {
+            font-style: italic;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .taxon-info {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .taxon-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--border);
+            border-radius: 12px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .notes-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            resize: none;
+        }
+
+        .notes-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-kin {
+            background: var(--accent-kin);
+            color: var(--bg-dark);
+        }
+
+        .btn-maybe {
+            background: var(--accent-maybe);
+            color: var(--bg-dark);
+        }
+
+        .btn-skip {
+            background: var(--accent-skip);
+            color: var(--text-primary);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .progress {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .nav-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .summary {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .summary h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-kin .stat-value { color: var(--accent-kin); }
+        .stat-maybe .stat-value { color: var(--accent-maybe); }
+
+        .export-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--accent-kin);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+
+        .export-btn:hover {
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+
+        .keyboard-hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+        }
+
+        .keyboard-hint kbd {
+            background: var(--border);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-family: inherit;
+        }
+
+        .ala-link {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .ala-link a {
+            color: var(--accent-kin);
+            text-decoration: none;
+        }
+
+        .ala-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Species Browser</h1>
+        <p>Building a seed vocabulary for Chimera ecology.<br>
+        Flag species that feel like meaningful kin.</p>
+        <div class="acknowledgment" id="acknowledgment"></div>
+    </header>
+
+    <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="fauna">Fauna</button>
+        <button class="filter-btn" data-filter="flora">Flora</button>
+        <button class="filter-btn" data-filter="fungi">Fungi</button>
+        <button class="filter-btn" data-filter="unflagged">Unflagged</button>
+        <button class="filter-btn" data-filter="kin">Kin</button>
+        <button class="filter-btn" data-filter="maybe">Maybe</button>
+    </div>
+
+    <div class="species-card" id="species-card">
+        <div class="loading">Loading species data...</div>
+    </div>
+
+    <div class="summary" id="summary">
+        <h3>Progress</h3>
+        <div class="summary-stats">
+            <div class="stat stat-kin">
+                <div class="stat-value" id="kin-count">0</div>
+                <div class="stat-label">Kin</div>
+            </div>
+            <div class="stat stat-maybe">
+                <div class="stat-value" id="maybe-count">0</div>
+                <div class="stat-label">Maybe</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="reviewed-count">0</div>
+                <div class="stat-label">Reviewed</div>
+            </div>
+        </div>
+        <button class="export-btn" onclick="exportFlagged()">Export Seed Vocabulary</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
