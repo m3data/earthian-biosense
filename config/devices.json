@@ -1,0 +1,20 @@
+{
+  "devices": {
+    "035E4C31": {
+      "label": "A",
+      "strap": "black-340",
+      "color": "#1a1a1a",
+      "description": "Black strap, ID 340"
+    },
+    "10E74932": {
+      "label": "B",
+      "strap": "red-432",
+      "color": "#c41e3a",
+      "description": "Red strap, ID 432"
+    }
+  },
+  "roles": {
+    "A": "Left panel in UI, first in data records",
+    "B": "Right panel in UI, second in data records"
+  }
+}
