@@ -1,19 +1,48 @@
 # EarthianBioSense
 
-Biosignal acquisition and streaming client for the Earthian Ecological Coherence Protocol (EECP).
+Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP).
 
-Connects to Polar H10 heart rate monitors via BLE, computes HRV metrics, and tracks autonomic state as a trajectory through phase space.
+Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space.
 
 ## What It Does
 
-- **BLE connection** to Polar H10 (heart rate + RR intervals)
+- **Heart rate capture** from Polar H10 (HR + RR intervals)
 - **HRV metrics**: amplitude, entrainment (breath-heart coupling), breath rate estimation
 - **Phase space trajectory**: tracks movement through a 3D manifold (entrainment, breath, amplitude)
 - **Dynamics computation**: velocity, curvature, stability — not just where you are, but how you're moving
-- **Terminal UI**: real-time ASCII visualization
+- **Mode classification**: 6-mode system from heightened alertness to coherent presence
 - **JSONL export**: full trajectory data for post-session analysis
 
+## Capture Methods
+
+### iOS App (EBSCapture)
+
+Native iOS app for mobile capture. Pairs with Polar H10 via Bluetooth, records sessions, exports JSONL.
+
+Location: `ios/EBSCapture/`
+
+**Features:**
+- SwiftUI interface with earth-warm theme
+- Activity tagging (meditation, walking, conversation, etc.)
+- Session management and export
+- iOS 15+
+
+### Python Terminal App
+
+Desktop capture with real-time ASCII visualization.
+
+```bash
+python src/app.py
+```
+
+**Features:**
+- Live terminal UI
+- WebSocket streaming to downstream clients
+- Direct session recording
+
 ## Installation
+
+### Python (processing + desktop capture)
 
 ```bash
 git clone https://github.com/m3data/earthian-biosense.git
@@ -23,40 +52,50 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Usage
+### iOS
+
+Open `ios/EBSCapture/EBSCapture.xcodeproj` in Xcode. Build and run on device (BLE requires physical device, not simulator).
+
+## Processing Pipeline
+
+iOS captures export raw JSONL with HR and RR intervals. The processing script enriches these with computed metrics:
 
 ```bash
-python src/app.py
+python scripts/process_session.py sessions/ios-exports/2025-12-29_115820.jsonl
 ```
 
-Wear your Polar H10 strap (requires skin contact to activate), ensure Bluetooth is enabled and the device isn't connected to another app.
+Output: `sessions/ios-exports/2025-12-29_115820_processed.jsonl`
 
-Session data is saved to `sessions/YYYY-MM-DD_HHMMSS.jsonl`.
+Adds:
+- HRV metrics (amplitude, entrainment, breath rate, volatility)
+- Phase dynamics (position, velocity, curvature, stability)
+- Mode classification with soft membership
+- Movement annotation
 
-## Phase Labels
+## Mode Classification
 
-Labels emerge from trajectory dynamics, not just thresholds:
+Six modes emerge from position in feature space (entrainment, breath steadiness, amplitude, volatility):
 
-| Label | Meaning |
-|-------|---------|
-| `warming up` | Insufficient data |
-| `alert stillness` | Stable but low coherence — watchful calm |
-| `active transition` | Moving through phase space |
-| `inflection (seeking)` | High curvature, turning point, seeking coherence |
-| `inflection (from coherence)` | High curvature, dropping from coherent state |
-| `settling into coherence` | Low velocity/curvature, high coherence — dwelling |
-| `coherent dwelling` | Stable in coherent region |
-| `neutral dwelling` | Stable, mid-coherence |
+| Mode | Description |
+|------|-------------|
+| `heightened alertness` | High reactivity, low entrainment |
+| `subtle alertness` | Attentive but not reactive |
+| `transitional` | Moving between states |
+| `settling` | Approaching coherence |
+| `emerging coherence` | High entrainment, steady breath |
+| `coherent presence` | Stable coherent dwelling |
 
-## JSONL Output
+Modes use soft classification — you're never fully "in" one mode, but have membership across all six.
 
-Each line contains:
+## Output Format (Schema 1.1.0)
+
+Each processed record contains:
 
 ```json
 {
-  "ts": "2025-12-01T16:49:18.274140",
-  "hr": 86,
-  "rr": [640, 634, 637],
+  "ts": "2025-12-29T11:58:21.748Z",
+  "hr": 77,
+  "rr": [785],
   "metrics": {
     "amp": 164,
     "ent": 0.576,
@@ -67,16 +106,29 @@ Each line contains:
     "mode_score": 0.543
   },
   "phase": {
-    "position": [0.5759, 0.5, 0.82],
-    "velocity": [0.0413, 0.0, 0.0333],
-    "velocity_mag": 0.0531,
+    "position": [0.576, 0.5, 0.82],
+    "velocity": [0.041, 0.0, 0.033],
+    "velocity_mag": 0.053,
     "curvature": 0.047,
-    "stability": 0.8672,
-    "history_signature": 0.2292,
+    "stability": 0.867,
+    "history_signature": 0.229,
     "phase_label": "settling into coherence",
     "coherence": 0.55,
-    "movement_annotation": "settling from heightened alertness",
-    "movement_aware_label": "settling · from heightened alertness"
+    "movement_annotation": "settled",
+    "movement_aware_label": "settling",
+    "soft_mode": {
+      "primary": "settling",
+      "secondary": "emerging coherence",
+      "ambiguity": 0.23,
+      "membership": {
+        "heightened alertness": 0.02,
+        "subtle alertness": 0.08,
+        "transitional": 0.15,
+        "settling": 0.45,
+        "emerging coherence": 0.25,
+        "coherent presence": 0.05
+      }
+    }
   }
 }
 ```
@@ -101,29 +153,62 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    A[Polar H10] -->|BLE| B[RRi Buffer]
-    B -->|20 samples| C[HRV Metrics]
-    C --> D[Phase Trajectory]
-    D -->|30s window| E[Dynamics]
-    E --> F[Output]
-    F --> G[Terminal UI]
-    F --> H[JSONL]
-    F --> I[WebSocket]
 ```
-
-See [docs/overview.md](docs/overview.md) for detailed architecture.
+┌─────────────────────────────────────────────────────────┐
+│                    Capture Layer                        │
+├────────────────────────┬────────────────────────────────┤
+│   iOS App (EBSCapture) │   Python Terminal App          │
+│   - Mobile capture     │   - Desktop capture            │
+│   - Activity tagging   │   - Real-time visualization    │
+│   - JSONL export       │   - WebSocket streaming        │
+└───────────┬────────────┴────────────────┬───────────────┘
+            │                             │
+            ▼                             ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Raw JSONL Sessions                     │
+│            (HR, RR intervals, timestamps)               │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│              Processing Pipeline (Python)               │
+│  - HRV metrics computation                              │
+│  - Phase trajectory tracking                            │
+│  - Mode classification                                  │
+│  - Movement annotation                                  │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│               Processed JSONL Sessions                  │
+│     (enriched with metrics, phase, soft modes)          │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Requirements
 
+**Python processing:**
 - Python 3.11+
+- Dependencies in `requirements.txt`
+
+**iOS capture:**
+- macOS with Xcode 15+
+- iOS 15+ device (BLE requires physical device)
 - Polar H10 heart rate monitor
-- macOS/Linux with Bluetooth
+
+**Hardware:**
+- Polar H10 chest strap (~$90)
+- Requires skin contact to activate
 
 ## License
 
-All rights reserved. This is private research software. No license is granted for use, modification, or distribution without explicit written permission from the author.
+Earthian Stewardship License (ESL-A) v0.1
+
+Core commitments:
+- Respect somatic sovereignty
+- No manipulation, surveillance, or entrainment without consent
+- Non-commercial by default; commercial use requires permission
+- Share-back safety improvements to the commons
 
 ---
 
