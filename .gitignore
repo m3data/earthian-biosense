@@ -15,6 +15,11 @@ env/
 *.swp
 *.swo
 
+# Xcode user-specific
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
 # OS
 .DS_Store
 Thumbs.db
