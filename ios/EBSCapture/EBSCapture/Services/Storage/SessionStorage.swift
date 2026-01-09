@@ -74,14 +74,15 @@ final class SessionStorage: ObservableObject {
         return metadata
     }
 
-    /// Record a heart rate measurement
-    func recordMeasurement(_ measurement: HeartRateMeasurement) throws {
+    /// Record a heart rate measurement with optional processed metrics
+    func recordMeasurement(_ measurement: HeartRateMeasurement, metrics: MetricsRecord? = nil) throws {
         guard let handle = activeFileHandle else { return }
 
         let record = SessionDataRecord(
             ts: DateFormatters.iso8601String(from: measurement.timestamp),
             hr: measurement.heartRate,
-            rr: measurement.rrIntervals
+            rr: measurement.rrIntervals,
+            metrics: metrics
         )
         try writeRecord(record, to: handle)
         activeSampleCount += 1

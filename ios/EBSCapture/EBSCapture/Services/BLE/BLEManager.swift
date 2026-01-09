@@ -118,8 +118,8 @@ final class BLEManager: NSObject, ObservableObject {
 
         // Auto-stop scan after timeout
         scanTimer?.invalidate()
-        scanTimer = Timer.scheduledTimer(withTimeInterval: BLEConstants.scanTimeout, repeats: false) { [weak self] _ in
-            Task { @MainActor in
+        scanTimer = Timer.scheduledTimer(withTimeInterval: BLEConstants.scanTimeout, repeats: false) { _ in
+            Task { @MainActor [weak self] in
                 self?.stopScanning()
             }
         }

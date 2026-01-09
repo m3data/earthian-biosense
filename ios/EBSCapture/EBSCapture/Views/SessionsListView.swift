@@ -61,16 +61,27 @@ struct SessionsListView: View {
     }
 
     private var sessionsList: some View {
-        ScrollView {
-            LazyVStack(spacing: EarthianSpacing.sm) {
-                ForEach(viewModel.sessions) { session in
-                    SessionRowView(session: session) {
-                        viewModel.shareSession(session)
-                    }
+        List {
+            ForEach(viewModel.sessions) { session in
+                SessionRowView(session: session) {
+                    viewModel.shareSession(session)
                 }
+                .listRowBackground(Color.bg)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: EarthianSpacing.xs,
+                    leading: EarthianSpacing.md,
+                    bottom: EarthianSpacing.xs,
+                    trailing: EarthianSpacing.md
+                ))
             }
-            .padding(EarthianSpacing.md)
+            .onDelete { indexSet in
+                viewModel.deleteSessions(at: indexSet)
+            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.bg)
     }
 }
 
@@ -81,64 +92,62 @@ struct SessionRowView: View {
     let onShare: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: EarthianSpacing.md) {
-                // Session info
-                VStack(alignment: .leading, spacing: EarthianSpacing.xs) {
-                    // Activity label if available
-                    if let activity = session.activity {
-                        HStack(spacing: EarthianSpacing.xs) {
-                            Image(systemName: "tag.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(.journey)
-                            Text(activity)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.journey)
-                        }
-                        .padding(.bottom, 2)
+        HStack(spacing: EarthianSpacing.md) {
+            // Session info
+            VStack(alignment: .leading, spacing: EarthianSpacing.xs) {
+                // Activity label if available
+                if let activity = session.activity {
+                    HStack(spacing: EarthianSpacing.xs) {
+                        Image(systemName: "tag.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.journey)
+                        Text(activity)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.journey)
                     }
-                    
-                    // Date and time
-                    HStack(spacing: EarthianSpacing.sm) {
-                        Text(session.startTime, style: .date)
-                            .font(.earthianBody)
-                            .foregroundColor(.textPrimary)
-                        Text(session.startTime, style: .time)
-                            .font(.earthianCaption)
-                            .foregroundStyle(Color.textMuted)
-                    }
-
-                    // Duration and samples
-                    HStack(spacing: EarthianSpacing.md) {
-                        Label(session.formattedDuration, systemImage: "clock")
-                            .foregroundColor(.sage)
-                        Label("\(session.sampleCount)", systemImage: "waveform")
-                            .foregroundColor(.ochre)
-                    }
-                    .font(.earthianCaption)
-
-                    // Device ID if available
-                    if let deviceId = session.deviceId {
-                        Text(deviceId)
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color.textDim)
-                    }
+                    .padding(.bottom, 2)
                 }
                 
-                Spacer()
-                
-                // Share button
-                Button(action: onShare) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.slate)
+                // Date and time
+                HStack(spacing: EarthianSpacing.sm) {
+                    Text(session.startTime, style: .date)
+                        .font(.earthianBody)
+                        .foregroundColor(.textPrimary)
+                    Text(session.startTime, style: .time)
+                        .font(.earthianCaption)
+                        .foregroundStyle(Color.textMuted)
                 }
-                .buttonStyle(.borderless)
+
+                // Duration and samples
+                HStack(spacing: EarthianSpacing.md) {
+                    Label(session.formattedDuration, systemImage: "clock")
+                        .foregroundColor(.sage)
+                    Label("\(session.sampleCount)", systemImage: "waveform")
+                        .foregroundColor(.ochre)
+                }
+                .font(.earthianCaption)
+
+                // Device ID if available
+                if let deviceId = session.deviceId {
+                    Text(deviceId)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.textDim)
+                }
             }
-            .padding(EarthianSpacing.md)
-            .background(Color.bgElevated)
-            .cornerRadius(EarthianRadius.md)
+            
+            Spacer()
+            
+            // Share button
+            Button(action: onShare) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color.slate)
+            }
+            .buttonStyle(.borderless)
         }
+        .padding(EarthianSpacing.md)
+        .background(Color.bgElevated)
+        .cornerRadius(EarthianRadius.md)
         .contextMenu {
             Button(action: onShare) {
                 Label("Share", systemImage: "square.and.arrow.up")

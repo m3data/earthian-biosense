@@ -7,12 +7,19 @@ struct RecordingView: View {
     @Binding var isRecording: Bool
     let activityLabel: String
 
-    @State private var currentHeartRate: Int = 0
+    @StateObject private var viewModel: SessionViewModel
     @State private var elapsedTime: TimeInterval = 0
-    @State private var sampleCount: Int = 0
     @State private var recordingStartTime: Date?
     @State private var elapsedTimer: Timer?
     @State private var cancellables = Set<AnyCancellable>()
+
+    init(bleManager: BLEManager, sessionStorage: SessionStorage, isRecording: Binding<Bool>, activityLabel: String) {
+        self.bleManager = bleManager
+        self.sessionStorage = sessionStorage
+        self._isRecording = isRecording
+        self.activityLabel = activityLabel
+        self._viewModel = StateObject(wrappedValue: SessionViewModel(bleManager: bleManager, sessionStorage: sessionStorage))
+    }
 
     var body: some View {
         ScrollView {
@@ -20,7 +27,7 @@ struct RecordingView: View {
                 // Recording header
                 recordingHeader
                     .padding(.top, EarthianSpacing.sm)
-                
+
                 // Activity label (if set)
                 if !activityLabel.isEmpty {
                     activitySection
@@ -28,7 +35,13 @@ struct RecordingView: View {
 
                 // Heart rate display (prominence)
                 heartRateDisplay
-                    .padding(.vertical, EarthianSpacing.xxl)
+                    .padding(.vertical, EarthianSpacing.lg)
+
+                // v0.2: Feedback section
+                if viewModel.sessionState.hrv.amplitude > 0 {
+                    feedbackSection
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
                 // Metadata section
                 VStack(spacing: EarthianSpacing.md) {
@@ -41,11 +54,11 @@ struct RecordingView: View {
                     }
 
                     // Sample count
-                    Text("\(sampleCount) samples")
+                    Text("\(viewModel.sampleCount) samples")
                         .font(.earthianCaption)
                         .foregroundStyle(Color.textMuted)
                 }
-                
+
                 Spacer()
                     .frame(height: EarthianSpacing.xl)
 
@@ -100,13 +113,13 @@ struct RecordingView: View {
         .padding(.vertical, EarthianSpacing.md)
         .earthianCard()
     }
-    
+
     private var activitySection: some View {
         HStack(spacing: EarthianSpacing.sm) {
             Image(systemName: "tag.fill")
                 .foregroundColor(.journey)
                 .font(.system(size: 14))
-            
+
             Text(activityLabel)
                 .font(.earthianBody)
                 .foregroundColor(.textPrimary)
@@ -124,16 +137,48 @@ struct RecordingView: View {
 
     private var heartRateDisplay: some View {
         VStack(spacing: EarthianSpacing.sm) {
-            Text("\(currentHeartRate)")
-                .font(.earthianData)
-                .foregroundStyle(currentHeartRate > 0 ? Color.textPrimary : Color.textDim)
-                .contentTransition(.numericText())
-                .animation(.easeInOut(duration: 0.3), value: currentHeartRate)
+            HStack(alignment: .lastTextBaseline, spacing: EarthianSpacing.xs) {
+                Text("\(viewModel.currentHeartRate)")
+                    .font(.earthianData)
+                    .foregroundStyle(viewModel.currentHeartRate > 0 ? Color.textPrimary : Color.textDim)
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentHeartRate)
+
+                if viewModel.latestRR > 0 {
+                    Text("(\(viewModel.latestRR)ms)")
+                        .font(.earthianCaption)
+                        .foregroundStyle(Color.textDim)
+                }
+            }
 
             Text("BPM")
                 .font(.earthianHeadline)
                 .foregroundStyle(Color.textMuted)
         }
+    }
+
+    /// v0.2: Feedback section with mode, entrainment, coherence
+    private var feedbackSection: some View {
+        VStack(spacing: EarthianSpacing.md) {
+            // Mode indicator
+            ModeIndicator(
+                mode: viewModel.sessionState.softMode.primaryMode,
+                status: viewModel.sessionState.modeStatus,
+                annotation: viewModel.sessionState.movementAnnotation
+            )
+            .animation(.easeInOut(duration: 0.5), value: viewModel.sessionState.softMode.primaryMode)
+
+            // Entrainment gauge
+            MetricGauge.entrainment(viewModel.sessionState.hrv.entrainment)
+                .animation(.easeInOut(duration: 0.3), value: viewModel.sessionState.hrv.entrainment)
+
+            // Coherence gauge
+            MetricGauge.coherence(viewModel.sessionState.dynamics.coherence)
+                .animation(.easeInOut(duration: 0.3), value: viewModel.sessionState.dynamics.coherence)
+        }
+        .padding(EarthianSpacing.md)
+        .background(Color.bgElevated)
+        .cornerRadius(EarthianRadius.md)
     }
 
     private var stopButton: some View {
@@ -163,7 +208,7 @@ struct RecordingView: View {
     private func startRecording() {
         // Start session storage
         do {
-            try sessionStorage.startSession(
+            _ = try sessionStorage.startSession(
                 deviceId: bleManager.connectedDeviceId,
                 activity: activityLabel.isEmpty ? nil : activityLabel
             )
@@ -175,10 +220,12 @@ struct RecordingView: View {
         // Start BLE streaming
         bleManager.startStreaming()
 
+        // Start processing
+        viewModel.startProcessing()
+
         // Start elapsed timer
         recordingStartTime = Date()
         elapsedTime = 0
-        sampleCount = 0
 
         elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             if let startTime = recordingStartTime {
@@ -186,7 +233,7 @@ struct RecordingView: View {
             }
         }
 
-        // Subscribe to heart rate measurements
+        // Subscribe to heart rate measurements for storage
         bleManager.heartRatePublisher
             .receive(on: DispatchQueue.main)
             .sink { measurement in
@@ -199,6 +246,9 @@ struct RecordingView: View {
         // Stop timer
         elapsedTimer?.invalidate()
         elapsedTimer = nil
+
+        // Stop processing
+        viewModel.stopProcessing()
 
         // Stop BLE streaming
         bleManager.stopStreaming()
@@ -220,11 +270,11 @@ struct RecordingView: View {
     }
 
     private func handleMeasurement(_ measurement: HeartRateMeasurement) {
-        currentHeartRate = measurement.heartRate
-        sampleCount += 1
+        // Get current metrics for saving
+        let metrics = viewModel.currentMetrics()
 
         do {
-            try sessionStorage.recordMeasurement(measurement)
+            try sessionStorage.recordMeasurement(measurement, metrics: metrics)
         } catch {
             print("Failed to record measurement: \(error)")
         }

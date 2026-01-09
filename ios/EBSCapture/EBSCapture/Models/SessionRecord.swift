@@ -24,6 +24,7 @@ struct SessionDataRecord: Codable {
     let ts: String  // ISO 8601 with microseconds
     let hr: Int
     let rr: [Int]  // milliseconds
+    let metrics: MetricsRecord?  // v0.2: processed metrics (optional)
 }
 
 /// Footer record - last line of JSONL file
