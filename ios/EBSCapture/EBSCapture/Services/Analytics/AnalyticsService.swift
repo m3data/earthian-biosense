@@ -90,6 +90,9 @@ final class AnalyticsService: ObservableObject {
         let weightedAmplitude = computeWeightedAverage(summaries, keyPath: \.avgAmplitude)
         let weightedHeartRate = computeWeightedAverage(summaries, keyPath: \.avgHeartRate)
 
+        // HRV weighted averages (by RR count for better statistical accuracy)
+        let (weightedRMSSD, weightedSDNN, weightedPNN50, totalRRCount) = computeWeightedHRV(summaries)
+
         // Activity counts
         var activityCounts: [String: Int] = [:]
         for summary in summaries {
@@ -119,6 +122,12 @@ final class AnalyticsService: ObservableObject {
         let amplitudeTrend = sorted.map {
             TrendPoint(date: $0.startTime, value: $0.avgAmplitude, sessionId: $0.sessionId)
         }
+        let rmssdTrend = sorted.map {
+            TrendPoint(date: $0.startTime, value: $0.rmssd, sessionId: $0.sessionId)
+        }
+        let sdnnTrend = sorted.map {
+            TrendPoint(date: $0.startTime, value: $0.sdnn, sessionId: $0.sessionId)
+        }
 
         return ProfileAnalytics(
             profileId: profile.id,
@@ -135,10 +144,16 @@ final class AnalyticsService: ObservableObject {
             overallAvgCoherence: weightedCoherence,
             overallAvgAmplitude: weightedAmplitude,
             overallAvgHeartRate: weightedHeartRate,
+            overallAvgRMSSD: weightedRMSSD,
+            overallAvgSDNN: weightedSDNN,
+            overallAvgPNN50: weightedPNN50,
+            totalRRCount: totalRRCount,
             totalModeDistribution: totalModeDistribution,
             entrainmentTrend: entrainmentTrend,
             coherenceTrend: coherenceTrend,
-            amplitudeTrend: amplitudeTrend
+            amplitudeTrend: amplitudeTrend,
+            rmssdTrend: rmssdTrend,
+            sdnnTrend: sdnnTrend
         )
     }
 
@@ -170,5 +185,25 @@ final class AnalyticsService: ObservableObject {
 
         return weekCounts.map { WeeklyCount(weekStart: $0.key, count: $0.value) }
             .sorted { $0.weekStart < $1.weekStart }
+    }
+
+    /// Compute RR-count-weighted HRV metrics
+    /// Weight by RR count for better statistical accuracy (more RR = more reliable)
+    private func computeWeightedHRV(_ summaries: [SessionSummary]) -> (rmssd: Double, sdnn: Double, pnn50: Double, totalRRCount: Int) {
+        let totalRRCount = summaries.reduce(0) { $0 + $1.rrCount }
+        guard totalRRCount > 0 else { return (0, 0, 0, 0) }
+
+        var weightedRMSSD = 0.0
+        var weightedSDNN = 0.0
+        var weightedPNN50 = 0.0
+
+        for summary in summaries {
+            let weight = Double(summary.rrCount) / Double(totalRRCount)
+            weightedRMSSD += summary.rmssd * weight
+            weightedSDNN += summary.sdnn * weight
+            weightedPNN50 += summary.pnn50 * weight
+        }
+
+        return (weightedRMSSD, weightedSDNN, weightedPNN50, totalRRCount)
     }
 }

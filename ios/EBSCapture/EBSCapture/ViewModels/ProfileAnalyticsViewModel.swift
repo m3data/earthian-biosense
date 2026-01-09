@@ -73,6 +73,27 @@ final class ProfileAnalyticsViewModel: ObservableObject {
         Int(analytics?.overallAvgHeartRate ?? 0)
     }
 
+    // HRV metrics
+    var avgRMSSD: Double {
+        analytics?.overallAvgRMSSD ?? 0
+    }
+
+    var avgSDNN: Double {
+        analytics?.overallAvgSDNN ?? 0
+    }
+
+    var avgPNN50: Double {
+        analytics?.overallAvgPNN50 ?? 0
+    }
+
+    var rmssdTrend: [TrendPoint] {
+        analytics?.rmssdTrend ?? []
+    }
+
+    var sdnnTrend: [TrendPoint] {
+        analytics?.sdnnTrend ?? []
+    }
+
     var dominantMode: String {
         analytics?.dominantMode ?? "—"
     }

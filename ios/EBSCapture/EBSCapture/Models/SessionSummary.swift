@@ -25,6 +25,12 @@ struct SessionSummary: Identifiable, Codable, Equatable {
     let minHeartRate: Int
     let maxHeartRate: Int
 
+    // Classic HRV metrics (computed from all RR intervals in session)
+    let rmssd: Double       // ms - parasympathetic activity
+    let sdnn: Double        // ms - overall HRV
+    let pnn50: Double       // % - parasympathetic indicator
+    let rrCount: Int        // number of RR intervals used
+
     // Aggregate metrics (averaged across session)
     let avgEntrainment: Double
     let avgCoherence: Double

@@ -166,8 +166,8 @@ struct InsightsView: View {
                 HStack(spacing: EarthianSpacing.lg) {
                     statItem(value: "\(analytics.sessionCount)", label: "Sessions")
                     statItem(value: analytics.formattedTotalDuration, label: "Total")
-                    statItem(value: String(format: "%.2f", analytics.overallAvgEntrainment), label: "Ent")
-                    statItem(value: String(format: "%.2f", analytics.overallAvgCoherence), label: "Coh")
+                    statItem(value: String(format: "%.0f", analytics.overallAvgRMSSD), label: "RMSSD")
+                    statItem(value: String(format: "%.0f", analytics.overallAvgSDNN), label: "SDNN")
                 }
 
                 // Dominant mode if available

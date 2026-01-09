@@ -9,6 +9,15 @@
 import Foundation
 import Combine
 
+/// Cache schema version - increment when SessionSummary fields change
+private let cacheSchemaVersion = 2  // v2 adds HRV metrics (rmssd, sdnn, pnn50, rrCount)
+
+/// Wrapper for versioned cache storage
+private struct VersionedCache: Codable {
+    let version: Int
+    let summaries: [UUID: SessionSummary]
+}
+
 @MainActor
 final class SessionSummaryCache: ObservableObject {
     // MARK: - Published State
@@ -28,9 +37,16 @@ final class SessionSummaryCache: ObservableObject {
             for: .documentDirectory,
             in: .userDomainMask
         )[0]
-        cacheURL = documentsURL.appendingPathComponent("session_summaries.json")
+        cacheURL = documentsURL.appendingPathComponent("session_summaries_v2.json")
 
         loadCache()
+        cleanupOldCache()
+    }
+
+    /// Remove old unversioned cache file
+    private func cleanupOldCache() {
+        let oldCacheURL = documentsURL.appendingPathComponent("session_summaries.json")
+        try? FileManager.default.removeItem(at: oldCacheURL)
     }
 
     // MARK: - Public API
@@ -76,12 +92,19 @@ final class SessionSummaryCache: ObservableObject {
     }
 
     /// Ensure all sessions have cached summaries
+    /// Also re-computes if profile assignment has changed
     func ensureAllCached() async {
         isLoading = true
         defer { isLoading = false }
 
         for session in sessionStorage.sessions {
-            if summaries[session.id] == nil {
+            let existingSummary = summaries[session.id]
+
+            // Recompute if: not cached, or profile assignment changed
+            let needsRecompute = existingSummary == nil ||
+                existingSummary?.profileId != session.profileId
+
+            if needsRecompute {
                 _ = await computeAndCache(session)
             }
         }
@@ -118,6 +141,7 @@ final class SessionSummaryCache: ObservableObject {
 
         // Aggregation accumulators
         var heartRates: [Int] = []
+        var allRRIntervals: [Int] = []  // Accumulate all RR intervals for HRV computation
         var entrainments: [Double] = []
         var coherences: [Double] = []
         var amplitudes: [Double] = []
@@ -134,6 +158,7 @@ final class SessionSummaryCache: ObservableObject {
             // Try to parse as data record
             if let record = try? decoder.decode(SessionDataRecord.self, from: data) {
                 heartRates.append(record.hr)
+                allRRIntervals.append(contentsOf: record.rr)  // Collect all RR intervals
 
                 // Parse timestamp for mode time calculation
                 let timestamp = DateFormatters.iso8601WithMicroseconds.date(from: record.ts)
@@ -169,6 +194,9 @@ final class SessionSummaryCache: ObservableObject {
         let avgVol = volatilities.isEmpty ? 0 : volatilities.reduce(0, +) / Double(volatilities.count)
         let avgBR: Double? = breathRates.isEmpty ? nil : breathRates.reduce(0, +) / Double(breathRates.count)
 
+        // Compute classic HRV metrics from all collected RR intervals
+        let classicHRV = HRVProcessor.computeClassicHRV(allRRIntervals)
+
         // Calculate duration explicitly (avoid calling the computed property which uses Date())
         let calculatedDuration: TimeInterval
         if let endTime = session.endTime {
@@ -189,6 +217,10 @@ final class SessionSummaryCache: ObservableObject {
             avgHeartRate: avgHR,
             minHeartRate: heartRates.min() ?? 0,
             maxHeartRate: heartRates.max() ?? 0,
+            rmssd: classicHRV.rmssd,
+            sdnn: classicHRV.sdnn,
+            pnn50: classicHRV.pnn50,
+            rrCount: classicHRV.rrCount,
             avgEntrainment: avgEnt,
             avgCoherence: avgCoh,
             avgAmplitude: avgAmp,
@@ -203,24 +235,32 @@ final class SessionSummaryCache: ObservableObject {
     private func loadCache() {
         guard FileManager.default.fileExists(atPath: cacheURL.path),
               let data = try? Data(contentsOf: cacheURL),
-              let loaded = try? JSONDecoder().decode([UUID: SessionSummary].self, from: data) else {
+              let versionedCache = try? JSONDecoder().decode(VersionedCache.self, from: data) else {
+            // No cache or decode failed - will rebuild on demand
+            return
+        }
+
+        // Check schema version - if outdated, discard and rebuild
+        guard versionedCache.version == cacheSchemaVersion else {
+            try? FileManager.default.removeItem(at: cacheURL)
             return
         }
 
         // Filter to only keep summaries for sessions that still exist
         let existingSessionIds = Set(sessionStorage.sessions.map { $0.id })
-        summaries = loaded.filter { existingSessionIds.contains($0.key) }
+        summaries = versionedCache.summaries.filter { existingSessionIds.contains($0.key) }
 
         // Save if we filtered any out
-        if summaries.count != loaded.count {
+        if summaries.count != versionedCache.summaries.count {
             saveCache()
         }
     }
 
     private func saveCache() {
+        let versionedCache = VersionedCache(version: cacheSchemaVersion, summaries: summaries)
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
-        guard let data = try? encoder.encode(summaries) else { return }
+        guard let data = try? encoder.encode(versionedCache) else { return }
         try? data.write(to: cacheURL)
     }
 }

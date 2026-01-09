@@ -49,6 +49,12 @@ struct ProfileAnalytics: Identifiable, Codable, Equatable {
     let overallAvgAmplitude: Double
     let overallAvgHeartRate: Double
 
+    // Classic HRV metrics (weighted averages across sessions)
+    let overallAvgRMSSD: Double     // ms - parasympathetic activity
+    let overallAvgSDNN: Double      // ms - overall HRV
+    let overallAvgPNN50: Double     // % - parasympathetic indicator
+    let totalRRCount: Int           // total RR intervals across all sessions
+
     // Mode time totals across all sessions
     let totalModeDistribution: [String: TimeInterval]
 
@@ -56,6 +62,8 @@ struct ProfileAnalytics: Identifiable, Codable, Equatable {
     let entrainmentTrend: [TrendPoint]
     let coherenceTrend: [TrendPoint]
     let amplitudeTrend: [TrendPoint]
+    let rmssdTrend: [TrendPoint]
+    let sdnnTrend: [TrendPoint]
 
     /// Formatted total duration string
     var formattedTotalDuration: String {
@@ -106,10 +114,16 @@ struct ProfileAnalytics: Identifiable, Codable, Equatable {
             overallAvgCoherence: 0,
             overallAvgAmplitude: 0,
             overallAvgHeartRate: 0,
+            overallAvgRMSSD: 0,
+            overallAvgSDNN: 0,
+            overallAvgPNN50: 0,
+            totalRRCount: 0,
             totalModeDistribution: [:],
             entrainmentTrend: [],
             coherenceTrend: [],
-            amplitudeTrend: []
+            amplitudeTrend: [],
+            rmssdTrend: [],
+            sdnnTrend: []
         )
     }
 }
@@ -137,5 +151,15 @@ struct ProfileComparison: Equatable {
     /// Total duration comparison
     var durationComparison: [(name: String, value: TimeInterval)] {
         profiles.map { ($0.profileName, $0.totalDuration) }
+    }
+
+    /// RMSSD comparison data
+    var rmssdComparison: [(name: String, value: Double)] {
+        profiles.map { ($0.profileName, $0.overallAvgRMSSD) }
+    }
+
+    /// SDNN comparison data
+    var sdnnComparison: [(name: String, value: Double)] {
+        profiles.map { ($0.profileName, $0.overallAvgSDNN) }
     }
 }

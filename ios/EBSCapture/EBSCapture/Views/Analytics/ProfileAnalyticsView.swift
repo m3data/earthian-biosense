@@ -34,7 +34,30 @@ struct ProfileAnalyticsView: View {
                             // Overview card
                             overviewCard
 
-                            // Metrics cards
+                            // HRV metrics (most clinically meaningful)
+                            if viewModel.avgRMSSD > 0 || viewModel.avgSDNN > 0 {
+                                hrvMetricsSection
+                            }
+
+                            // RMSSD trend chart
+                            if !viewModel.rmssdTrend.isEmpty {
+                                hrvTrendChartSection(
+                                    title: "RMSSD Over Time",
+                                    data: viewModel.rmssdTrend,
+                                    color: .terracotta
+                                )
+                            }
+
+                            // SDNN trend chart
+                            if !viewModel.sdnnTrend.isEmpty {
+                                hrvTrendChartSection(
+                                    title: "SDNN Over Time",
+                                    data: viewModel.sdnnTrend,
+                                    color: .ochre
+                                )
+                            }
+
+                            // Other metrics
                             metricsSection
 
                             // Entrainment trend chart
@@ -152,6 +175,54 @@ struct ProfileAnalyticsView: View {
         .earthianCard()
     }
 
+    // MARK: - HRV Metrics Section
+
+    private var hrvMetricsSection: some View {
+        VStack(alignment: .leading, spacing: EarthianSpacing.md) {
+            HStack {
+                Image(systemName: "heart.text.square")
+                    .foregroundColor(.terracotta)
+                Text("Heart Rate Variability")
+                    .font(.earthianHeadline)
+                    .foregroundColor(.textPrimary)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: EarthianSpacing.md) {
+                hrvCard(value: String(format: "%.1f", viewModel.avgRMSSD), label: "RMSSD", unit: "ms", color: .terracotta)
+                hrvCard(value: String(format: "%.1f", viewModel.avgSDNN), label: "SDNN", unit: "ms", color: .ochre)
+                hrvCard(value: String(format: "%.1f", viewModel.avgPNN50), label: "pNN50", unit: "%", color: .sage)
+            }
+
+            // HRV interpretation hint
+            Text("Higher values generally indicate greater parasympathetic activity")
+                .font(.earthianCaption)
+                .foregroundColor(.textDim)
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .earthianCard()
+    }
+
+    private func hrvCard(value: String, label: String, unit: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .foregroundColor(color)
+                Text(unit)
+                    .font(.system(size: 12))
+                    .foregroundColor(.textDim)
+            }
+            Text(label)
+                .font(.earthianCaption)
+                .foregroundColor(.textMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(EarthianSpacing.sm)
+        .background(color.opacity(0.1))
+        .cornerRadius(EarthianRadius.sm)
+    }
+
     private func metricCard(value: String, label: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(value)
@@ -207,6 +278,59 @@ struct ProfileAnalyticsView: View {
                         .foregroundStyle(Color.borderSubtle)
                     AxisValueLabel {
                         Text(String(format: "%.2f", value.as(Double.self) ?? 0))
+                            .foregroundStyle(Color.textDim)
+                    }
+                }
+            }
+        }
+        .earthianCard()
+    }
+
+    // MARK: - HRV Trend Chart Section (auto-scaling Y axis for ms values)
+
+    @available(iOS 16.0, *)
+    private func hrvTrendChartSection(title: String, data: [TrendPoint], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: EarthianSpacing.md) {
+            HStack {
+                Text(title)
+                    .font(.earthianHeadline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Text("ms")
+                    .font(.earthianCaption)
+                    .foregroundColor(.textDim)
+            }
+
+            Chart(data) { point in
+                LineMark(
+                    x: .value("Date", point.date),
+                    y: .value("Value", point.value)
+                )
+                .foregroundStyle(color)
+                .interpolationMethod(.catmullRom)
+
+                PointMark(
+                    x: .value("Date", point.date),
+                    y: .value("Value", point.value)
+                )
+                .foregroundStyle(color)
+                .symbolSize(30)
+            }
+            .frame(height: 180)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.borderSubtle)
+                    AxisValueLabel()
+                        .foregroundStyle(Color.textDim)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.borderSubtle)
+                    AxisValueLabel {
+                        Text(String(format: "%.0f", value.as(Double.self) ?? 0))
                             .foregroundStyle(Color.textDim)
                     }
                 }

@@ -258,6 +258,89 @@ enum HRVProcessor {
         return sqrt(variance) / meanRR
     }
 
+    // MARK: - Classic HRV Metrics
+
+    /// Compute RMSSD (Root Mean Square of Successive Differences)
+    /// Gold standard for parasympathetic (vagal) activity
+    /// Higher values = greater vagal tone
+    static func computeRMSSD(_ rrIntervals: [Int]) -> Double {
+        guard rrIntervals.count >= 2 else { return 0.0 }
+
+        var sumSquaredDiffs = 0.0
+        for i in 1..<rrIntervals.count {
+            let diff = Double(rrIntervals[i] - rrIntervals[i - 1])
+            sumSquaredDiffs += diff * diff
+        }
+
+        let meanSquaredDiff = sumSquaredDiffs / Double(rrIntervals.count - 1)
+        return sqrt(meanSquaredDiff)
+    }
+
+    /// Compute SDNN (Standard Deviation of NN intervals)
+    /// Reflects overall HRV (both sympathetic and parasympathetic)
+    /// Higher values = greater overall variability
+    static func computeSDNN(_ rrIntervals: [Int]) -> Double {
+        guard rrIntervals.count >= 2 else { return 0.0 }
+
+        let mean = Double(rrIntervals.reduce(0, +)) / Double(rrIntervals.count)
+
+        let variance = rrIntervals.reduce(0.0) { acc, x in
+            acc + pow(Double(x) - mean, 2)
+        } / Double(rrIntervals.count)
+
+        return sqrt(variance)
+    }
+
+    /// Compute pNN50 (Percentage of successive RR intervals differing by >50ms)
+    /// Another parasympathetic indicator
+    /// Returns value 0-100 (percentage)
+    static func computePNN50(_ rrIntervals: [Int]) -> Double {
+        guard rrIntervals.count >= 2 else { return 0.0 }
+
+        var countOver50 = 0
+        for i in 1..<rrIntervals.count {
+            let diff = abs(rrIntervals[i] - rrIntervals[i - 1])
+            if diff > 50 {
+                countOver50 += 1
+            }
+        }
+
+        return (Double(countOver50) / Double(rrIntervals.count - 1)) * 100.0
+    }
+
+    /// Compute all classic HRV metrics at once (efficient single pass where possible)
+    static func computeClassicHRV(_ rrIntervals: [Int]) -> ClassicHRVMetrics {
+        guard rrIntervals.count >= 2 else {
+            return ClassicHRVMetrics(rmssd: 0, sdnn: 0, pnn50: 0, meanRR: 0, rrCount: 0)
+        }
+
+        let n = rrIntervals.count
+        let mean = Double(rrIntervals.reduce(0, +)) / Double(n)
+
+        // Single pass for SDNN variance
+        var varianceSum = 0.0
+        for rr in rrIntervals {
+            varianceSum += pow(Double(rr) - mean, 2)
+        }
+        let sdnn = sqrt(varianceSum / Double(n))
+
+        // Single pass for RMSSD and pNN50
+        var sumSquaredDiffs = 0.0
+        var countOver50 = 0
+        for i in 1..<n {
+            let diff = rrIntervals[i] - rrIntervals[i - 1]
+            sumSquaredDiffs += Double(diff * diff)
+            if abs(diff) > 50 {
+                countOver50 += 1
+            }
+        }
+
+        let rmssd = sqrt(sumSquaredDiffs / Double(n - 1))
+        let pnn50 = (Double(countOver50) / Double(n - 1)) * 100.0
+
+        return ClassicHRVMetrics(rmssd: rmssd, sdnn: sdnn, pnn50: pnn50, meanRR: mean, rrCount: n)
+    }
+
     // MARK: - Mode (Simple)
 
     /// Compute simple MODE using weighted combination
@@ -292,4 +375,13 @@ enum HRVProcessor {
 
         return (label, calmScore)
     }
+}
+
+/// Classic HRV metrics bundle
+struct ClassicHRVMetrics: Codable, Equatable {
+    let rmssd: Double   // ms - parasympathetic activity
+    let sdnn: Double    // ms - overall variability
+    let pnn50: Double   // % - parasympathetic indicator
+    let meanRR: Double  // ms - mean RR interval
+    let rrCount: Int    // number of RR intervals used
 }
