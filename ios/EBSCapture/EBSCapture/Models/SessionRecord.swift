@@ -22,7 +22,7 @@ struct SessionStartRecord: Codable {
 }
 
 /// Data record - body of JSONL file (one per BLE notification)
-struct SessionDataRecord: Codable {
+struct SessionDataRecord: Codable, Sendable {
     let ts: String  // ISO 8601 with microseconds
     let hr: Int
     let rr: [Int]  // milliseconds

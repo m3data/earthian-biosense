@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SessionsListView: View {
     @ObservedObject var viewModel: SessionsViewModel
+    @ObservedObject var profileStorage: ProfileStorage
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -38,6 +39,18 @@ struct SessionsListView: View {
             .sheet(item: $viewModel.sharingSession) { session in
                 ShareSheet(items: [viewModel.fileURL(for: session)])
             }
+            .sheet(item: $viewModel.assigningProfileToSession) { session in
+                SessionProfilePicker(
+                    session: session,
+                    profiles: profileStorage.profiles,
+                    onSelect: { profile in
+                        viewModel.updateSessionProfile(session, profile: profile)
+                    },
+                    onCancel: {
+                        viewModel.assigningProfileToSession = nil
+                    }
+                )
+            }
         }
     }
 
@@ -63,9 +76,11 @@ struct SessionsListView: View {
     private var sessionsList: some View {
         List {
             ForEach(viewModel.sessions) { session in
-                SessionRowView(session: session) {
+                SessionRowView(session: session, onShare: {
                     viewModel.shareSession(session)
-                }
+                }, onAssignProfile: {
+                    viewModel.assignProfile(to: session)
+                })
                 .listRowBackground(Color.bg)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(
@@ -90,6 +105,7 @@ struct SessionsListView: View {
 struct SessionRowView: View {
     let session: SessionMetadata
     let onShare: () -> Void
+    let onAssignProfile: () -> Void
 
     var body: some View {
         HStack(spacing: EarthianSpacing.md) {
@@ -133,10 +149,21 @@ struct SessionRowView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(Color.textDim)
                 }
+
+                // Profile name if assigned
+                if let profileName = session.profileName {
+                    HStack(spacing: EarthianSpacing.xs) {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 10))
+                        Text(profileName)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.slate)
+                }
             }
-            
+
             Spacer()
-            
+
             // Share button
             Button(action: onShare) {
                 Image(systemName: "square.and.arrow.up")
@@ -149,10 +176,87 @@ struct SessionRowView: View {
         .background(Color.bgElevated)
         .cornerRadius(EarthianRadius.md)
         .contextMenu {
+            Button(action: onAssignProfile) {
+                Label(session.profileName != nil ? "Change Profile" : "Assign Profile", systemImage: "person.badge.plus")
+            }
             Button(action: onShare) {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
         }
+    }
+}
+
+// MARK: - Session Profile Picker
+
+struct SessionProfilePicker: View {
+    let session: SessionMetadata
+    let profiles: [Profile]
+    let onSelect: (Profile?) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.bg.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: EarthianSpacing.md) {
+                        // No profile option
+                        Button(action: { onSelect(nil) }) {
+                            HStack(spacing: EarthianSpacing.sm) {
+                                Image(systemName: session.profileId == nil ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(session.profileId == nil ? .sage : .textDim)
+                                    .font(.system(size: 20))
+
+                                Text("No Profile")
+                                    .font(.earthianBody)
+                                    .foregroundColor(.textPrimary)
+
+                                Spacer()
+                            }
+                            .padding(EarthianSpacing.md)
+                            .background(session.profileId == nil ? Color.sage.opacity(0.1) : Color.bgElevated)
+                            .cornerRadius(EarthianRadius.md)
+                        }
+
+                        // Profile options
+                        ForEach(profiles) { profile in
+                            Button(action: { onSelect(profile) }) {
+                                HStack(spacing: EarthianSpacing.sm) {
+                                    Image(systemName: session.profileId == profile.id ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(session.profileId == profile.id ? .sage : .textDim)
+                                        .font(.system(size: 20))
+
+                                    Text(profile.name)
+                                        .font(.earthianBody)
+                                        .foregroundColor(.textPrimary)
+
+                                    Spacer()
+                                }
+                                .padding(EarthianSpacing.md)
+                                .background(session.profileId == profile.id ? Color.sage.opacity(0.1) : Color.bgElevated)
+                                .cornerRadius(EarthianRadius.md)
+                            }
+                        }
+                    }
+                    .padding(EarthianSpacing.md)
+                }
+            }
+            .navigationTitle("Assign Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.bgSurface, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                    .foregroundColor(.textMuted)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationBackground(Color.bg)
     }
 }
 
@@ -171,5 +275,8 @@ struct ShareSheet: UIViewControllerRepresentable {
 // MARK: - Preview
 
 #Preview {
-    SessionsListView(viewModel: SessionsViewModel(sessionStorage: SessionStorage()))
+    SessionsListView(
+        viewModel: SessionsViewModel(sessionStorage: SessionStorage()),
+        profileStorage: ProfileStorage()
+    )
 }

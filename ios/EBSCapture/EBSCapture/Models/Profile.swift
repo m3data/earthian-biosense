@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Profile: Identifiable, Codable, Equatable {
+struct Profile: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var name: String
     let createdAt: Date

@@ -9,11 +9,14 @@ import SwiftUI
 
 struct ProfilePickerSheet: View {
     @ObservedObject var profileStorage: ProfileStorage
+    @EnvironmentObject private var analyticsService: AnalyticsService
+    @EnvironmentObject private var summaryCache: SessionSummaryCache
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingNewProfile = false
     @State private var newProfileName = ""
     @State private var editingProfile: Profile?
+    @State private var showingAnalyticsFor: Profile?
 
     var body: some View {
         NavigationStack {
@@ -102,6 +105,13 @@ struct ProfilePickerSheet: View {
             } message: {
                 Text("Edit or delete this profile")
             }
+            .sheet(item: $showingAnalyticsFor) { profile in
+                ProfileAnalyticsView(
+                    profile: profile,
+                    analyticsService: analyticsService,
+                    summaryCache: summaryCache
+                )
+            }
         }
         .presentationDetents([.medium, .large])
         .presentationBackground(Color.bg)
@@ -140,6 +150,13 @@ struct ProfilePickerSheet: View {
                     .foregroundColor(.textPrimary)
 
                 Spacer()
+
+                Button(action: { showingAnalyticsFor = profile }) {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(.ochre)
+                        .font(.system(size: 14))
+                }
+                .padding(.trailing, EarthianSpacing.sm)
 
                 Button(action: { editingProfile = profile }) {
                     Image(systemName: "pencil")

@@ -12,6 +12,21 @@ struct EBSCaptureApp: App {
     @StateObject private var bleManager = BLEManager()
     @StateObject private var sessionStorage = SessionStorage()
     @StateObject private var profileStorage = ProfileStorage()
+    @StateObject private var summaryCache: SessionSummaryCache
+    @StateObject private var analyticsService: AnalyticsService
+
+    init() {
+        // Initialize storage objects first
+        let sessionStorage = SessionStorage()
+        let profileStorage = ProfileStorage()
+        let summaryCache = SessionSummaryCache(sessionStorage: sessionStorage)
+        let analyticsService = AnalyticsService(summaryCache: summaryCache, profileStorage: profileStorage)
+
+        _sessionStorage = StateObject(wrappedValue: sessionStorage)
+        _profileStorage = StateObject(wrappedValue: profileStorage)
+        _summaryCache = StateObject(wrappedValue: summaryCache)
+        _analyticsService = StateObject(wrappedValue: analyticsService)
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -19,6 +34,12 @@ struct EBSCaptureApp: App {
                 .environmentObject(bleManager)
                 .environmentObject(sessionStorage)
                 .environmentObject(profileStorage)
+                .environmentObject(summaryCache)
+                .environmentObject(analyticsService)
+                .task {
+                    // Ensure summaries are cached for all sessions
+                    await summaryCache.ensureAllCached()
+                }
         }
     }
 }

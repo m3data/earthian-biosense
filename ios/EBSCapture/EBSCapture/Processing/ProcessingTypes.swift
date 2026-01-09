@@ -155,7 +155,7 @@ struct SessionState: Equatable {
 // MARK: - Metrics Record (for JSONL)
 
 /// Metrics to save alongside raw HR/RR data
-struct MetricsRecord: Codable {
+struct MetricsRecord: Codable, Sendable {
     let amp: Int            // amplitude
     let ent: Double         // entrainment
     let coh: Double         // coherence

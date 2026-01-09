@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var showingAbout = false
     @State private var showingSettings = false
     @State private var showingProfilePicker = false
+    @State private var showingInsights = false
 
     @AppStorage("defaultActivity") private var defaultActivity: String = ""
 
@@ -41,6 +42,14 @@ struct HomeView: View {
                     .buttonStyle(EarthianButtonStyle(color: .sage))
                     .disabled(sessionStorage.sessions.isEmpty)
                     .opacity(sessionStorage.sessions.isEmpty ? 0.4 : 1.0)
+
+                    // Insights Button (visible when profiles have sessions)
+                    if !profileStorage.profiles.isEmpty && !sessionStorage.sessions.isEmpty {
+                        Button("Insights") {
+                            showingInsights = true
+                        }
+                        .buttonStyle(EarthianButtonStyle(color: .ochre))
+                    }
                 }
                 .padding(EarthianSpacing.md)
             }
@@ -74,7 +83,10 @@ struct HomeView: View {
                 )
             }
             .sheet(isPresented: $showingSessions) {
-                SessionsListView(viewModel: SessionsViewModel(sessionStorage: sessionStorage))
+                SessionsListView(
+                    viewModel: SessionsViewModel(sessionStorage: sessionStorage),
+                    profileStorage: profileStorage
+                )
             }
             .sheet(isPresented: $showingActivityLabel) {
                 ActivityLabelSheet(
@@ -116,6 +128,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingProfilePicker) {
                 ProfilePickerSheet(profileStorage: profileStorage)
+            }
+            .sheet(isPresented: $showingInsights) {
+                InsightsView()
             }
         }
     }

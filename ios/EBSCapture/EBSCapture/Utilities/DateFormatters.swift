@@ -3,7 +3,7 @@ import Foundation
 enum DateFormatters {
     /// ISO 8601 formatter with fractional seconds for JSONL timestamps
     /// Format: 2025-12-29T11:30:45.123456Z
-    static let iso8601WithMicroseconds: ISO8601DateFormatter = {
+    nonisolated(unsafe) static let iso8601WithMicroseconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [
             .withInternetDateTime,

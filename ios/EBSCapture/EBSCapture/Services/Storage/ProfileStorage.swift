@@ -8,7 +8,8 @@
 import Foundation
 import Combine
 
-class ProfileStorage: ObservableObject {
+@MainActor
+final class ProfileStorage: ObservableObject {
     @Published private(set) var profiles: [Profile] = []
     @Published var currentProfileId: UUID? {
         didSet {
@@ -77,15 +78,20 @@ class ProfileStorage: ObservableObject {
 
     private func loadProfiles() {
         guard FileManager.default.fileExists(atPath: profilesURL.path) else {
+            print("ℹ No profiles file found at: \(profilesURL.path)")
             profiles = []
             return
         }
 
         do {
             let data = try Data(contentsOf: profilesURL)
-            profiles = try JSONDecoder().decode([Profile].self, from: data)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            profiles = try decoder.decode([Profile].self, from: data)
+            print("✓ Loaded \(profiles.count) profile(s) from: \(profilesURL.path)")
         } catch {
-            print("Failed to load profiles: \(error)")
+            print("✗ Failed to load profiles: \(error)")
+            print("  File path: \(profilesURL.path)")
             profiles = []
         }
     }
@@ -96,9 +102,11 @@ class ProfileStorage: ObservableObject {
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = .prettyPrinted
             let data = try encoder.encode(profiles)
-            try data.write(to: profilesURL)
+            try data.write(to: profilesURL, options: [.atomic])
+            print("✓ Profiles saved successfully to: \(profilesURL.path)")
+            print("  Profile count: \(profiles.count)")
         } catch {
-            print("Failed to save profiles: \(error)")
+            print("✗ Failed to save profiles: \(error)")
         }
     }
 }

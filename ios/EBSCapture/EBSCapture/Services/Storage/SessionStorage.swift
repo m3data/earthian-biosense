@@ -159,6 +159,49 @@ final class SessionStorage: ObservableObject {
         }
     }
 
+    /// Update a session's profile association
+    func updateSessionProfile(_ session: SessionMetadata, profile: Profile?) throws {
+        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+
+        // Update metadata
+        var updated = sessions[index]
+        updated.profileId = profile?.id
+        updated.profileName = profile?.name
+        sessions[index] = updated
+
+        // Update JSONL file header
+        let fileURL = documentsURL.appendingPathComponent(session.filename)
+        try updateJSONLHeader(at: fileURL, profileId: profile?.id.uuidString, profileName: profile?.name)
+
+        saveSessionIndex()
+    }
+
+    /// Update the header line of a JSONL file with new profile info
+    private func updateJSONLHeader(at url: URL, profileId: String?, profileName: String?) throws {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return }
+        var lines = content.components(separatedBy: "\n")
+        guard !lines.isEmpty else { return }
+
+        // Parse existing header
+        guard let headerData = lines[0].data(using: .utf8),
+              var headerDict = try? JSONSerialization.jsonObject(with: headerData) as? [String: Any] else {
+            return
+        }
+
+        // Update profile fields
+        headerDict["profile_id"] = profileId
+        headerDict["profile_name"] = profileName
+
+        // Re-encode header
+        let updatedHeaderData = try JSONSerialization.data(withJSONObject: headerDict, options: [.sortedKeys])
+        guard let updatedHeaderString = String(data: updatedHeaderData, encoding: .utf8) else { return }
+
+        // Replace first line and write back
+        lines[0] = updatedHeaderString
+        let updatedContent = lines.joined(separator: "\n")
+        try updatedContent.write(to: url, atomically: true, encoding: .utf8)
+    }
+
     // MARK: - Private Methods
 
     private func writeRecord<T: Encodable>(_ record: T, to handle: FileHandle) throws {
@@ -193,7 +236,7 @@ final class SessionStorage: ObservableObject {
 
     private func saveSessionIndex() {
         guard let data = try? JSONEncoder().encode(sessions) else { return }
-        try? data.write(to: indexURL)
+        _ = try? data.write(to: indexURL)
     }
 
     private func rebuildSessionIndex() {

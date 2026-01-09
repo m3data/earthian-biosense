@@ -13,6 +13,7 @@ final class SessionsViewModel: ObservableObject {
 
     @Published var sessions: [SessionMetadata] = []
     @Published var sharingSession: SessionMetadata?
+    @Published var assigningProfileToSession: SessionMetadata?
 
     private let sessionStorage: SessionStorage
     private var cancellables = Set<AnyCancellable>()
@@ -42,5 +43,14 @@ final class SessionsViewModel: ObservableObject {
     
     func deleteSessions(at offsets: IndexSet) {
         sessionStorage.deleteSessions(at: offsets)
+    }
+
+    func assignProfile(to session: SessionMetadata) {
+        assigningProfileToSession = session
+    }
+
+    func updateSessionProfile(_ session: SessionMetadata, profile: Profile?) {
+        try? sessionStorage.updateSessionProfile(session, profile: profile)
+        assigningProfileToSession = nil
     }
 }
