@@ -11,12 +11,14 @@ import SwiftUI
 struct EBSCaptureApp: App {
     @StateObject private var bleManager = BLEManager()
     @StateObject private var sessionStorage = SessionStorage()
+    @StateObject private var profileStorage = ProfileStorage()
 
     var body: some Scene {
         WindowGroup {
             HomeView()
                 .environmentObject(bleManager)
                 .environmentObject(sessionStorage)
+                .environmentObject(profileStorage)
         }
     }
 }

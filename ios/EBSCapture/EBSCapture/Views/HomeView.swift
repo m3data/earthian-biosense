@@ -3,20 +3,29 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var bleManager: BLEManager
     @EnvironmentObject private var sessionStorage: SessionStorage
+    @EnvironmentObject private var profileStorage: ProfileStorage
 
     @State private var showingSessions = false
     @State private var showingDeviceList = false
     @State private var isRecording = false
     @State private var showingActivityLabel = false
     @State private var activityLabel = ""
+    @State private var showingAbout = false
+    @State private var showingSettings = false
+    @State private var showingProfilePicker = false
+
+    @AppStorage("defaultActivity") private var defaultActivity: String = ""
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: EarthianSpacing.lg) {
+                    // Profile selector
+                    profileSelector
+                        .padding(.top, EarthianSpacing.md)
+
                     // Device Status
                     connectionStatusSection
-                        .padding(.top, EarthianSpacing.lg)
 
                     // Connect/Scan Button
                     actionButton
@@ -40,12 +49,28 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(Color.bgSurface, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(action: { showingSettings = true }) {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                        Button(action: { showingAbout = true }) {
+                            Label("About", systemImage: "info.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(.textMuted)
+                    }
+                }
+            }
             .navigationDestination(isPresented: $isRecording) {
                 RecordingView(
                     bleManager: bleManager,
                     sessionStorage: sessionStorage,
                     isRecording: $isRecording,
-                    activityLabel: activityLabel
+                    activityLabel: activityLabel,
+                    profile: profileStorage.currentProfile
                 )
             }
             .sheet(isPresented: $showingSessions) {
@@ -83,10 +108,48 @@ struct HomeView: View {
                     showingDeviceList = true
                 }
             }
+            .sheet(isPresented: $showingAbout) {
+                AboutView()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
+            .sheet(isPresented: $showingProfilePicker) {
+                ProfilePickerSheet(profileStorage: profileStorage)
+            }
         }
     }
 
     // MARK: - Subviews
+
+    private var profileSelector: some View {
+        Button(action: { showingProfilePicker = true }) {
+            HStack(spacing: EarthianSpacing.sm) {
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(profileStorage.currentProfile != nil ? .sage : .textDim)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(profileStorage.currentProfile?.name ?? "No profile selected")
+                        .font(.earthianBody)
+                        .foregroundColor(.textPrimary)
+
+                    Text("Tap to select")
+                        .font(.earthianCaption)
+                        .foregroundColor(.textDim)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(.textDim)
+            }
+            .padding(EarthianSpacing.md)
+            .background(Color.bgElevated)
+            .cornerRadius(EarthianRadius.md)
+        }
+    }
 
     private var connectionStatusSection: some View {
         VStack(spacing: EarthianSpacing.md) {
@@ -279,6 +342,10 @@ struct HomeView: View {
         case .poweredOn, .disconnected:
             bleManager.startScanning()
         case .connected:
+            // Pre-fill with default activity from settings
+            if activityLabel.isEmpty && !defaultActivity.isEmpty {
+                activityLabel = defaultActivity
+            }
             showingActivityLabel = true
         default:
             break
@@ -490,4 +557,5 @@ struct ActivityLabelSheet: View {
     HomeView()
         .environmentObject(BLEManager())
         .environmentObject(SessionStorage())
+        .environmentObject(ProfileStorage())
 }

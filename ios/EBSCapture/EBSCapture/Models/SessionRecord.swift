@@ -13,9 +13,11 @@ struct SessionStartRecord: Codable {
     let source: String = "ios-capture"
     let device_id: String?
     let activity: String?
+    let profile_id: String?
+    let profile_name: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, ts, schema_version, source, device_id, activity
+        case type, ts, schema_version, source, device_id, activity, profile_id, profile_name
     }
 }
 

@@ -9,6 +9,8 @@ struct SessionMetadata: Identifiable, Codable, Equatable {
     var sampleCount: Int
     var deviceId: String?
     var activity: String?
+    var profileId: UUID?
+    var profileName: String?
 
     var duration: TimeInterval {
         (endTime ?? Date()).timeIntervalSince(startTime)

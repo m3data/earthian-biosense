@@ -34,7 +34,7 @@ final class SessionStorage: ObservableObject {
 
     /// Start a new recording session
     @discardableResult
-    func startSession(deviceId: String?, activity: String?) throws -> SessionMetadata {
+    func startSession(deviceId: String?, activity: String?, profile: Profile? = nil) throws -> SessionMetadata {
         // End any existing session first
         if activeSession != nil {
             try? endSession()
@@ -52,7 +52,9 @@ final class SessionStorage: ObservableObject {
         let header = SessionStartRecord(
             ts: DateFormatters.iso8601String(from: now),
             device_id: deviceId,
-            activity: activity
+            activity: activity,
+            profile_id: profile?.id.uuidString,
+            profile_name: profile?.name
         )
         try writeRecord(header, to: handle)
 
@@ -64,7 +66,9 @@ final class SessionStorage: ObservableObject {
             endTime: nil,
             sampleCount: 0,
             deviceId: deviceId,
-            activity: activity
+            activity: activity,
+            profileId: profile?.id,
+            profileName: profile?.name
         )
 
         activeFileHandle = handle
@@ -246,7 +250,9 @@ final class SessionStorage: ObservableObject {
             endTime: endTime,
             sampleCount: sampleCount,
             deviceId: header.device_id,
-            activity: header.activity
+            activity: header.activity,
+            profileId: header.profile_id.flatMap { UUID(uuidString: $0) },
+            profileName: header.profile_name
         )
     }
 }

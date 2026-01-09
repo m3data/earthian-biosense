@@ -6,6 +6,7 @@ struct RecordingView: View {
     let sessionStorage: SessionStorage
     @Binding var isRecording: Bool
     let activityLabel: String
+    let profile: Profile?
 
     @StateObject private var viewModel: SessionViewModel
     @State private var elapsedTime: TimeInterval = 0
@@ -13,11 +14,12 @@ struct RecordingView: View {
     @State private var elapsedTimer: Timer?
     @State private var cancellables = Set<AnyCancellable>()
 
-    init(bleManager: BLEManager, sessionStorage: SessionStorage, isRecording: Binding<Bool>, activityLabel: String) {
+    init(bleManager: BLEManager, sessionStorage: SessionStorage, isRecording: Binding<Bool>, activityLabel: String, profile: Profile? = nil) {
         self.bleManager = bleManager
         self.sessionStorage = sessionStorage
         self._isRecording = isRecording
         self.activityLabel = activityLabel
+        self.profile = profile
         self._viewModel = StateObject(wrappedValue: SessionViewModel(bleManager: bleManager, sessionStorage: sessionStorage))
     }
 
@@ -43,27 +45,10 @@ struct RecordingView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                // Metadata section
-                VStack(spacing: EarthianSpacing.md) {
-                    // Signal quality
-                    SignalQualityIndicator(quality: bleManager.signalQuality)
-
-                    // Battery level
-                    if let battery = bleManager.batteryLevel {
-                        BatteryIndicator(level: battery)
-                    }
-
-                    // Sample count
-                    Text("\(viewModel.sampleCount) samples")
-                        .font(.earthianCaption)
-                        .foregroundStyle(Color.textMuted)
-                }
-
-                Spacer()
-                    .frame(height: EarthianSpacing.xl)
-
-                // Stop button
-                stopButton
+                // Sample count (minimal data flow indicator)
+                Text("\(viewModel.sampleCount) samples")
+                    .font(.earthianCaption)
+                    .foregroundStyle(Color.textDim)
             }
             .padding(EarthianSpacing.md)
         }
@@ -106,8 +91,8 @@ struct RecordingView: View {
 
             // Elapsed time
             Text(elapsedTimeFormatted)
-                .font(.system(size: 32, weight: .light, design: .monospaced))
-                .foregroundColor(.textPrimary)
+                .font(.system(size: 20, weight: .regular, design: .monospaced))
+                .foregroundColor(.textMuted)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, EarthianSpacing.md)
@@ -136,10 +121,10 @@ struct RecordingView: View {
     }
 
     private var heartRateDisplay: some View {
-        VStack(spacing: EarthianSpacing.sm) {
+        VStack(spacing: EarthianSpacing.xs) {
             HStack(alignment: .lastTextBaseline, spacing: EarthianSpacing.xs) {
                 Text("\(viewModel.currentHeartRate)")
-                    .font(.earthianData)
+                    .font(.system(size: 48, weight: .light, design: .rounded))
                     .foregroundStyle(viewModel.currentHeartRate > 0 ? Color.textPrimary : Color.textDim)
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.3), value: viewModel.currentHeartRate)
@@ -181,13 +166,6 @@ struct RecordingView: View {
         .cornerRadius(EarthianRadius.md)
     }
 
-    private var stopButton: some View {
-        Button(action: { stopAndDismiss() }) {
-            Label("Stop Recording", systemImage: "stop.fill")
-        }
-        .buttonStyle(EarthianButtonStyle(color: .activated))
-    }
-
     // MARK: - Computed Properties
 
     private var elapsedTimeFormatted: String {
@@ -210,7 +188,8 @@ struct RecordingView: View {
         do {
             _ = try sessionStorage.startSession(
                 deviceId: bleManager.connectedDeviceId,
-                activity: activityLabel.isEmpty ? nil : activityLabel
+                activity: activityLabel.isEmpty ? nil : activityLabel,
+                profile: profile
             )
         } catch {
             print("Failed to start session: \(error)")
