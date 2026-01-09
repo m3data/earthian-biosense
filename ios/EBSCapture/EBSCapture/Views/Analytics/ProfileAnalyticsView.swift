@@ -265,11 +265,15 @@ struct ProfileAnalyticsView: View {
             .frame(height: 180)
             .chartYScale(domain: 0...1)
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(Color.borderSubtle)
-                    AxisValueLabel()
-                        .foregroundStyle(Color.textDim)
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.day().month(.abbreviated))
+                                .foregroundStyle(Color.textDim)
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -318,11 +322,15 @@ struct ProfileAnalyticsView: View {
             }
             .frame(height: 180)
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(Color.borderSubtle)
-                    AxisValueLabel()
-                        .foregroundStyle(Color.textDim)
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.day().month(.abbreviated))
+                                .foregroundStyle(Color.textDim)
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -456,9 +464,13 @@ struct ProfileAnalyticsView: View {
             }
             .frame(height: 150)
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                    AxisValueLabel()
-                        .foregroundStyle(Color.textDim)
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.day().month(.abbreviated))
+                                .foregroundStyle(Color.textDim)
+                        }
+                    }
                 }
             }
             .chartYAxis {

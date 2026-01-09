@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject private var bleManager: BLEManager
     @EnvironmentObject private var sessionStorage: SessionStorage
     @EnvironmentObject private var profileStorage: ProfileStorage
+    @EnvironmentObject private var summaryCache: SessionSummaryCache
 
     @State private var showingSessions = false
     @State private var showingDeviceList = false
@@ -85,7 +86,8 @@ struct HomeView: View {
             .sheet(isPresented: $showingSessions) {
                 SessionsListView(
                     viewModel: SessionsViewModel(sessionStorage: sessionStorage),
-                    profileStorage: profileStorage
+                    profileStorage: profileStorage,
+                    summaryCache: summaryCache
                 )
             }
             .sheet(isPresented: $showingActivityLabel) {

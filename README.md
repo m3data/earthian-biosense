@@ -7,7 +7,8 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 ## What It Does
 
 - **Heart rate capture** from Polar H10 (HR + RR intervals)
-- **HRV metrics**: amplitude, entrainment (breath-heart coupling), breath rate estimation
+- **Classic HRV metrics**: RMSSD, SDNN, pNN50 (clinically meaningful parasympathetic indicators)
+- **Custom HRV metrics**: amplitude, entrainment (breath-heart coupling), breath rate estimation
 - **Phase space trajectory**: tracks movement through a 3D manifold (entrainment, breath, amplitude)
 - **Dynamics computation**: velocity, curvature, stability — not just where you are, but how you're moving
 - **Mode classification**: 6-mode system from heightened alertness to coherent presence
@@ -15,17 +16,22 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 
 ## Capture Methods
 
-### iOS App (EBSCapture)
+### iOS App (EBSCapture) — v0.2
 
-Native iOS app for mobile capture. Pairs with Polar H10 via Bluetooth, records sessions, exports JSONL.
+Native iOS app for mobile capture with on-device HRV processing. Pairs with Polar H10 via Bluetooth, records sessions with real-time feedback, exports enriched JSONL.
 
 Location: `ios/EBSCapture/`
 
 **Features:**
 - SwiftUI interface with earth-warm theme
+- **Real-time HRV metrics**: RMSSD, SDNN, pNN50 computed on-device
+- **Real-time feedback**: mode indicator, entrainment/coherence gauges during recording
+- **Profile management**: multi-person support with per-profile analytics
+- **Session analytics**: detailed per-session metrics view (HRV, mode distribution, HR stats)
+- **Profile insights**: trend charts, comparison views, aggregated metrics over time
 - Activity tagging (meditation, walking, conversation, etc.)
 - Session management and export
-- iOS 15+
+- iOS 16+ (Charts framework)
 
 ### Python Terminal App
 
@@ -158,23 +164,27 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 │                    Capture Layer                        │
 ├────────────────────────┬────────────────────────────────┤
 │   iOS App (EBSCapture) │   Python Terminal App          │
+│   v0.2                 │                                │
 │   - Mobile capture     │   - Desktop capture            │
-│   - Activity tagging   │   - Real-time visualization    │
-│   - JSONL export       │   - WebSocket streaming        │
+│   - On-device HRV      │   - Real-time visualization    │
+│   - Real-time feedback │   - WebSocket streaming        │
+│   - Profile analytics  │                                │
+│   - Session insights   │                                │
 └───────────┬────────────┴────────────────┬───────────────┘
             │                             │
             ▼                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│                  Raw JSONL Sessions                     │
-│            (HR, RR intervals, timestamps)               │
+│                    JSONL Sessions                       │
+│   iOS: enriched with metrics (amp, ent, coh, mode)      │
+│   Python: raw HR/RR or enriched via processing script   │
 └───────────────────────────┬─────────────────────────────┘
                             │
-                            ▼
+                            ▼ (optional for iOS exports)
 ┌─────────────────────────────────────────────────────────┐
 │              Processing Pipeline (Python)               │
-│  - HRV metrics computation                              │
+│  - Full HRV metrics computation                         │
 │  - Phase trajectory tracking                            │
-│  - Mode classification                                  │
+│  - Mode classification with soft membership             │
 │  - Movement annotation                                  │
 └───────────────────────────┬─────────────────────────────┘
                             │
@@ -193,7 +203,7 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 
 **iOS capture:**
 - macOS with Xcode 15+
-- iOS 15+ device (BLE requires physical device)
+- iOS 16+ device (Charts framework; BLE requires physical device)
 - Polar H10 heart rate monitor
 
 **Hardware:**

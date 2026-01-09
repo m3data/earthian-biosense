@@ -196,11 +196,15 @@ struct ProfileComparisonView: View {
                     comparison?.profiles.count ?? 0 > 1 ? (comparison?.profiles[1].profileName ?? "") : "": Color.ochre
                 ])
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.borderSubtle)
-                        AxisValueLabel()
-                            .foregroundStyle(Color.textDim)
+                        AxisValueLabel {
+                            if let date = value.as(Date.self) {
+                                Text(date, format: .dateTime.day().month(.abbreviated))
+                                    .foregroundStyle(Color.textDim)
+                            }
+                        }
                     }
                 }
                 .chartYAxis {

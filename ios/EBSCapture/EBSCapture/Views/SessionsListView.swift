@@ -3,7 +3,10 @@ import SwiftUI
 struct SessionsListView: View {
     @ObservedObject var viewModel: SessionsViewModel
     @ObservedObject var profileStorage: ProfileStorage
+    let summaryCache: SessionSummaryCache
     @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedSession: SessionMetadata?
 
     var body: some View {
         NavigationStack {
@@ -51,6 +54,9 @@ struct SessionsListView: View {
                     }
                 )
             }
+            .sheet(item: $selectedSession) { session in
+                SessionAnalyticsView(session: session, summaryCache: summaryCache)
+            }
         }
     }
 
@@ -76,7 +82,9 @@ struct SessionsListView: View {
     private var sessionsList: some View {
         List {
             ForEach(viewModel.sessions) { session in
-                SessionRowView(session: session, onShare: {
+                SessionRowView(session: session, onTap: {
+                    selectedSession = session
+                }, onShare: {
                     viewModel.shareSession(session)
                 }, onAssignProfile: {
                     viewModel.assignProfile(to: session)
@@ -104,6 +112,7 @@ struct SessionsListView: View {
 
 struct SessionRowView: View {
     let session: SessionMetadata
+    let onTap: () -> Void
     let onShare: () -> Void
     let onAssignProfile: () -> Void
 
@@ -175,7 +184,14 @@ struct SessionRowView: View {
         .padding(EarthianSpacing.md)
         .background(Color.bgElevated)
         .cornerRadius(EarthianRadius.md)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
         .contextMenu {
+            Button(action: onTap) {
+                Label("View Details", systemImage: "chart.bar.xaxis")
+            }
             Button(action: onAssignProfile) {
                 Label(session.profileName != nil ? "Change Profile" : "Assign Profile", systemImage: "person.badge.plus")
             }
@@ -275,8 +291,10 @@ struct ShareSheet: UIViewControllerRepresentable {
 // MARK: - Preview
 
 #Preview {
-    SessionsListView(
-        viewModel: SessionsViewModel(sessionStorage: SessionStorage()),
-        profileStorage: ProfileStorage()
+    let sessionStorage = SessionStorage()
+    return SessionsListView(
+        viewModel: SessionsViewModel(sessionStorage: sessionStorage),
+        profileStorage: ProfileStorage(),
+        summaryCache: SessionSummaryCache(sessionStorage: sessionStorage)
     )
 }
