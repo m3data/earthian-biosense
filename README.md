@@ -1,8 +1,8 @@
 # EarthianBioSense
 
-Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP).
+Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP). Part of a research programme investigating how adaptive capacity can be sensed, supported, and stewarded through somatic and computational signals.
 
-Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space.
+Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space. Designed as the somatic sensing layer in a cross-substrate coupling architecture where biosignal and semantic streams are analysed together.
 
 ## What It Does
 
@@ -141,7 +141,7 @@ Each processed record contains:
 
 ## EECP Context
 
-EarthianBioSense is one of three clients in the Earthian Ecological Coherence Protocol ecosystem:
+The Earthian Ecological Coherence Protocol (EECP) is a research architecture for detecting coherence across multiple sensing modalities. EarthianBioSense is one of three clients in the ecosystem:
 
 ```
 ┌─────────────────┬─────────────────┬─────────────────┐
@@ -212,7 +212,7 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 
 ## License
 
-Earthian Stewardship License (ESL-A) v0.1
+[Earthian Stewardship License (ESL-A) v0.1](LICENSE)
 
 Core commitments:
 - Respect somatic sovereignty

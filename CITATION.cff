@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: EarthianBioSense
+message: >-
+  If you use this software, please cite it using
+  the metadata from this file.
+type: software
+
+authors:
+  - given-names: Mathew Mark
+    family-names: Mytka
+    affiliation: EarthianLabs
+
+repository-code: https://github.com/m3data/earthian-biosense
+url: https://github.com/m3data/earthian-biosense
+
+abstract: >-
+  Biosignal acquisition and analysis for the Earthian
+  Ecological Coherence Protocol (EECP). Captures heart rate
+  variability from Polar H10 monitors, computes HRV metrics,
+  and tracks autonomic state as a trajectory through phase
+  space with mode classification and entrainment detection.
+
+keywords:
+  - biosignal processing
+  - heart rate variability
+  - entrainment
+  - coherence
+  - phase space
+  - autonomic nervous system
+  - ecological cognition
+
+license: LicenseRef-ESL-A
+version: 0.2.0
+date-released: 2026-01-09
