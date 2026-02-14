@@ -1,5 +1,9 @@
 # EarthianBioSense
 
+![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
+![Version](https://img.shields.io/badge/VERSION-0.2.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
+
 Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP). Part of a research programme investigating how adaptive capacity can be sensed, supported, and stewarded through somatic and computational signals.
 
 Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space. Designed as the somatic sensing layer in a cross-substrate coupling architecture where biosignal and semantic streams are analysed together.
