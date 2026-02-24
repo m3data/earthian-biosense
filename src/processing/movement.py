@@ -344,7 +344,7 @@ def compute_soft_mode_membership(
     breath_steady: bool,
     amp_norm: float,
     volatility: float,
-    temperature: float = 1.0,
+    temperature: float = 0.2,
     previous_inference: Optional[SoftModeInference] = None
 ) -> SoftModeInference:
     """

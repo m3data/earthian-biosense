@@ -446,10 +446,12 @@ class PhaseTrajectory:
             return 0.8
 
         # Autocovariance at lag
+        # Use n as denominator (matching variance above) for consistent normalization.
+        # Using (n - lag) inflates the result by n/(n-lag) at small buffer sizes.
         autocovariance = sum(
             (v_mags[i] - mean_v) * (v_mags[i + lag] - mean_v)
             for i in range(n - lag)
-        ) / (n - lag)
+        ) / n
 
         autocorr = autocovariance / variance
 

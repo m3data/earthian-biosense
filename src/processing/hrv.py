@@ -54,10 +54,13 @@ def compute_autocorrelation(rr_intervals: list[int], lag: int) -> float:
         return 0.0
 
     # Compute autocovariance at lag
+    # Use n as denominator (matching variance above) for unbiased normalization.
+    # Using (n - lag) here would inflate the result by n/(n-lag), which at
+    # small buffer sizes (e.g., n=10, lag=8) gives a 5x overestimate.
     autocovariance = sum(
         (rr_intervals[i] - mean) * (rr_intervals[i + lag] - mean)
         for i in range(n - lag)
-    ) / (n - lag)
+    ) / n
 
     return autocovariance / variance
 

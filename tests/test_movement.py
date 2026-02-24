@@ -91,6 +91,31 @@ class TestSoftModeInference:
         for mode in MODE_CENTROIDS:
             assert mode in result.membership
 
+    def test_upper_modes_reachable_at_default_temperature(self):
+        """P0-B regression: all six modes must clear their entry thresholds.
+
+        At T=1.0, the softmax ceiling fell below entry thresholds for
+        settling (0.19), emerging coherence (0.20), and coherent presence (0.22).
+        The default temperature must be low enough for these to be enterable.
+        """
+        # coherent presence — needs membership >= 0.22
+        cp = compute_soft_mode_membership(
+            entrainment=0.8, breath_steady=True, amp_norm=0.75, volatility=0.01
+        )
+        assert cp.membership['coherent presence'] >= DEFAULT_HYSTERESIS['coherent presence'].entry_threshold
+
+        # emerging coherence — needs membership >= 0.20
+        ec = compute_soft_mode_membership(
+            entrainment=0.65, breath_steady=True, amp_norm=0.65, volatility=0.03
+        )
+        assert ec.membership['emerging coherence'] >= DEFAULT_HYSTERESIS['emerging coherence'].entry_threshold
+
+        # settling — needs membership >= 0.19
+        s = compute_soft_mode_membership(
+            entrainment=0.55, breath_steady=True, amp_norm=0.55, volatility=0.05
+        )
+        assert s.membership['settling'] >= DEFAULT_HYSTERESIS['settling'].entry_threshold
+
 
 # =============================================================================
 # Mode History

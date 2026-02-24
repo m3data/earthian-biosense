@@ -59,6 +59,34 @@ class TestComputeAutocorrelation:
         # 3 intervals, lag 5 -> not enough
         assert compute_autocorrelation(rr_very_short, lag=5) == 0.0
 
+    def test_no_inflation_at_small_buffer(self):
+        """P0-A regression: autocorrelation must not inflate at small n with large lag.
+
+        With n=10 and lag=8, the old mixed-denominator formula inflated by
+        n/(n-lag) = 5.0. The corrected formula uses n for both variance
+        and autocovariance, so the result stays bounded by [-1, 1].
+        """
+        rr = [1000 + int(80 * math.sin(2 * math.pi * i / 5)) for i in range(10)]
+        ac = compute_autocorrelation(rr, lag=8)
+        assert -1.0 <= ac <= 1.0
+        # At lag 8, period 5: not aligned with period, so should be modest
+        assert abs(ac) < 0.5
+
+    def test_consistent_denominator(self):
+        """Verify normalization doesn't depend on lag for a white-noise-like signal.
+
+        For truly random data, autocorrelation at any lag should be near zero.
+        If the formula uses mixed denominators, large lags inflate the result.
+        """
+        import random
+        rng = random.Random(123)
+        rr = [rng.randint(900, 1100) for _ in range(20)]
+        ac_lag2 = abs(compute_autocorrelation(rr, lag=2))
+        ac_lag8 = abs(compute_autocorrelation(rr, lag=8))
+        # Both should be small (near zero) for random data
+        assert ac_lag2 < 0.5
+        assert ac_lag8 < 0.5
+
 
 class TestComputeEntrainment:
     """Breath-heart entrainment score from autocorrelation."""
