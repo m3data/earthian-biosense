@@ -252,7 +252,7 @@ The metrics are not independent. Key relationships:
 
 ## Implementation Notes
 
-All metrics are computed in `src/processing/hrv.py`. Key parameters:
+Custom metrics (amplitude, entrainment, breath rate, volatility, mode) are computed in `src/processing/hrv.py`. Classic HRV metrics (RMSSD, SDNN, pNN50) are computed in the iOS app (`ios/EBSCapture/Models/HRVProcessor.swift`) from stored RR intervals. Key parameters for the Python pipeline:
 
 - Buffer size: ~20 RRi samples
 - Update rate: Every new RRi (~1 second)
