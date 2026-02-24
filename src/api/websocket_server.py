@@ -12,25 +12,8 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 from datetime import datetime
 from typing import Callable, Any
-from dataclasses import dataclass
 
-
-@dataclass
-class SemioticMarker:
-    """Semiotic state marker received from Semantic Climate."""
-    timestamp: datetime
-    curvature_delta: float | None = None
-    entropy_delta: float | None = None
-    coupling_psi: float | None = None
-    label: str | None = None
-
-
-@dataclass
-class FieldEvent:
-    """Manual field event marker."""
-    timestamp: datetime
-    event: str
-    note: str | None = None
+from domain.types import SemioticMarker, FieldEvent
 
 
 class WebSocketServer:
