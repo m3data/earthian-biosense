@@ -65,9 +65,9 @@ def compute_autocorrelation(rr_intervals: list[int], lag: int) -> float:
     return autocovariance / variance
 
 
-def compute_entrainment(rr_intervals: list[int], expected_breath_period: int = 5) -> tuple[float, str]:
+def compute_entrainment(rr_intervals: list[int]) -> tuple[float, str]:
     """
-    Compute entrainment scalar using autocorrelation at expected breath period.
+    Compute entrainment scalar using autocorrelation at breath-frequency lags.
 
     This measures BREATH-HEART ENTRAINMENT (respiratory sinus arrhythmia) —
     how tightly the heart rhythm is phase-locked to breathing.
@@ -77,7 +77,11 @@ def compute_entrainment(rr_intervals: list[int], expected_breath_period: int = 5
     of the trajectory itself.
 
     Entrained breathing at ~6 breaths/min = ~10s period = ~10-12 RR intervals at 60 BPM.
-    We look for strong autocorrelation at lags corresponding to breath cycle.
+    We check autocorrelation at fixed lags [4-8] covering ~4-8 beat breath cycles.
+
+    Note: lag range does not currently cover slow resonant breathing (~6 breaths/min,
+    ~10-beat period). Adaptive lag selection from compute_breath_rate() output is a
+    future improvement (see P3-E in RAA-EBS-001 convergence report).
 
     Returns (entrainment_score, label)
     """
