@@ -260,11 +260,17 @@ enum HRVProcessor {
 
     // MARK: - Classic HRV Metrics
 
+    /// Minimum RR intervals for clinically meaningful HRV metrics.
+    /// ~60 intervals ≈ 1 minute at 60 BPM. Below this, RMSSD/SDNN/pNN50
+    /// are statistically degenerate (e.g., 2 intervals gives a single
+    /// difference, pNN50 = 0% or 100%). See RAA-EBS-001 C1 findings.
+    static let minimumRRCountForClassicHRV = 60
+
     /// Compute RMSSD (Root Mean Square of Successive Differences)
     /// Gold standard for parasympathetic (vagal) activity
     /// Higher values = greater vagal tone
     static func computeRMSSD(_ rrIntervals: [Int]) -> Double {
-        guard rrIntervals.count >= 2 else { return 0.0 }
+        guard rrIntervals.count >= minimumRRCountForClassicHRV else { return 0.0 }
 
         var sumSquaredDiffs = 0.0
         for i in 1..<rrIntervals.count {
@@ -280,7 +286,7 @@ enum HRVProcessor {
     /// Reflects overall HRV (both sympathetic and parasympathetic)
     /// Higher values = greater overall variability
     static func computeSDNN(_ rrIntervals: [Int]) -> Double {
-        guard rrIntervals.count >= 2 else { return 0.0 }
+        guard rrIntervals.count >= minimumRRCountForClassicHRV else { return 0.0 }
 
         let mean = Double(rrIntervals.reduce(0, +)) / Double(rrIntervals.count)
 
@@ -295,7 +301,7 @@ enum HRVProcessor {
     /// Another parasympathetic indicator
     /// Returns value 0-100 (percentage)
     static func computePNN50(_ rrIntervals: [Int]) -> Double {
-        guard rrIntervals.count >= 2 else { return 0.0 }
+        guard rrIntervals.count >= minimumRRCountForClassicHRV else { return 0.0 }
 
         var countOver50 = 0
         for i in 1..<rrIntervals.count {
@@ -310,7 +316,7 @@ enum HRVProcessor {
 
     /// Compute all classic HRV metrics at once (efficient single pass where possible)
     static func computeClassicHRV(_ rrIntervals: [Int]) -> ClassicHRVMetrics {
-        guard rrIntervals.count >= 2 else {
+        guard rrIntervals.count >= minimumRRCountForClassicHRV else {
             return ClassicHRVMetrics(rmssd: 0, sdnn: 0, pnn50: 0, meanRR: 0, rrCount: 0)
         }
 
