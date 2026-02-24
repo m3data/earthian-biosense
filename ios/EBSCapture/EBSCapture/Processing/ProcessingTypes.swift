@@ -197,14 +197,14 @@ enum AutonomicMode: String, CaseIterable, Codable {
         case .transitional:
             return [
                 "entrainment": 0.4,
-                "breathSteadyScore": 0.5,
+                "breathSteadyScore": 0.3,  // achievable value (breath not yet steady)
                 "ampNorm": 0.45,
                 "inverseVolatility": 0.6
             ]
         case .settling:
             return [
                 "entrainment": 0.55,
-                "breathSteadyScore": 0.8,
+                "breathSteadyScore": 1.0,  // achievable value (breath steady)
                 "ampNorm": 0.55,
                 "inverseVolatility": 0.75
             ]

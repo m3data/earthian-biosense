@@ -116,6 +116,20 @@ class TestSoftModeInference:
         )
         assert s.membership['settling'] >= DEFAULT_HYSTERESIS['settling'].entry_threshold
 
+    def test_centroid_breath_steady_values_are_achievable(self):
+        """P1-C regression: all centroid breath_steady_score values must be
+        achievable by real inputs (0.3 for unsteady, 1.0 for steady).
+
+        Before the fix, transitional had bss=0.5 and settling had bss=0.8,
+        which no real input could produce.
+        """
+        achievable = {0.3, 1.0}
+        for mode, centroid in MODE_CENTROIDS.items():
+            assert centroid['breath_steady_score'] in achievable, (
+                f"{mode} centroid has breath_steady_score={centroid['breath_steady_score']}, "
+                f"but only {achievable} are achievable from boolean breath_steady input"
+            )
+
 
 # =============================================================================
 # Mode History

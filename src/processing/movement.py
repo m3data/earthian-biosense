@@ -227,14 +227,14 @@ MODE_CENTROIDS = {
     # calm_score midpoint: 0.425 (0.35-0.5)
     'transitional': {
         'entrainment': 0.4,
-        'breath_steady_score': 0.5,
+        'breath_steady_score': 0.3,  # achievable value (breath not yet steady)
         'amp_norm': 0.45,
         'inverse_volatility': 0.6
     },
     # calm_score midpoint: 0.575 (0.5-0.65)
     'settling': {
         'entrainment': 0.55,
-        'breath_steady_score': 0.8,
+        'breath_steady_score': 1.0,  # achievable value (breath steady)
         'amp_norm': 0.55,
         'inverse_volatility': 0.75
     },

@@ -252,12 +252,24 @@ class PhaseTrajectory:
         stability = 1.0 / (1.0 + movement_intensity * 2)
         stability = max(0.0, min(1.0, stability))
 
-        # History signature: path integral normalized by window time
-        window_time = new_state.timestamp - self.states[0].timestamp if self.states else 1.0
-        window_time = max(window_time, 1.0)
-        history_signature = self.cumulative_path_length / window_time
-        # Normalize to roughly 0-1 range (empirical scaling)
-        history_signature = min(1.0, history_signature / 0.5)
+        # History signature: windowed path integral (distance within rolling buffer)
+        # Uses only the rolling window, not cumulative session path, to avoid
+        # saturating to 1.0 within minutes (P1-B fix from RAA-EBS-001).
+        if len(self.states) >= 1:
+            windowed_path = sum(
+                self._euclidean_distance(
+                    self.states[i].position, self.states[i + 1].position
+                )
+                for i in range(len(self.states) - 1)
+            )
+            windowed_path += self._euclidean_distance(
+                self.states[-1].position, new_state.position
+            )
+            window_time = new_state.timestamp - self.states[0].timestamp
+            window_time = max(window_time, 1.0)
+            history_signature = min(1.0, windowed_path / window_time / 0.5)
+        else:
+            history_signature = 0.0
 
         # Transition proximity: defer for now
         # Will need basin definitions to compute meaningfully

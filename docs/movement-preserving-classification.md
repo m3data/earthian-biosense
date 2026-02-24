@@ -103,8 +103,8 @@ flowchart LR
 |------|-------------|---------------|----------|-----------------|
 | heightened alertness | 0.1 | 0.3 | 0.2 | 0.2 |
 | subtle alertness | 0.25 | 0.3 | 0.35 | 0.4 |
-| transitional | 0.4 | 0.5 | 0.45 | 0.6 |
-| settling | 0.55 | 0.8 | 0.55 | 0.75 |
+| transitional | 0.4 | 0.3 | 0.45 | 0.6 |
+| settling | 0.55 | 1.0 | 0.55 | 0.75 |
 | rhythmic settling | 0.65 | 1.0 | 0.65 | 0.85 |
 | settled presence | 0.8 | 1.0 | 0.75 | 0.95 |
 

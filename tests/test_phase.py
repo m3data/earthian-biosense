@@ -114,6 +114,42 @@ class TestTrajectoryCoherence:
 
 
 # =============================================================================
+# History Signature
+# =============================================================================
+
+class TestHistorySignature:
+    """P1-B regression: history_signature must not saturate over long sessions."""
+
+    def test_does_not_saturate_over_long_session(self, metrics_calm):
+        """history_signature should stay below 1.0 for stationary input over many steps.
+
+        Before the fix, cumulative_path_length grew without bound while
+        window_time was capped at ~30s, causing saturation within minutes.
+        """
+        traj = PhaseTrajectory()
+        # Simulate 120 seconds of identical metrics (stationary)
+        for t in range(120):
+            dynamics = traj.append(metrics_calm, timestamp=float(t))
+        # Stationary trajectory: windowed path length should be near zero
+        assert dynamics.history_signature < 0.5
+
+    def test_windowed_not_cumulative(self, metrics_calm, metrics_alert):
+        """history_signature should reflect recent movement, not session total."""
+        traj = PhaseTrajectory()
+        # 60 seconds of movement
+        for t in range(60):
+            m = metrics_calm if t % 2 == 0 else metrics_alert
+            traj.append(m, timestamp=float(t))
+        sig_after_movement = traj.append(metrics_calm, timestamp=60.0).history_signature
+        # 60 more seconds of stillness
+        for t in range(61, 120):
+            dynamics = traj.append(metrics_calm, timestamp=float(t))
+        sig_after_stillness = dynamics.history_signature
+        # After 60s of stillness, signature should be lower than after movement
+        assert sig_after_stillness < sig_after_movement
+
+
+# =============================================================================
 # Reset
 # =============================================================================
 

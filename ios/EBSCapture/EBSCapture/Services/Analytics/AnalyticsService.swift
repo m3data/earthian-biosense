@@ -189,6 +189,14 @@ final class AnalyticsService: ObservableObject {
 
     /// Compute RR-count-weighted HRV metrics
     /// Weight by RR count for better statistical accuracy (more RR = more reliable)
+    ///
+    /// KNOWN LIMITATION (RAA-EBS-001 P1-A): weighted mean of per-session RMSSDs
+    /// is not equal to RMSSD of the pooled RR intervals. Same applies to SDNN.
+    /// Proper pooled computation requires intermediate statistics (sumSquaredSuccessiveDiffs,
+    /// sumRR, sumSquaredRR) stored per session. pNN50 weighted mean IS correct
+    /// (it's a ratio, so weighted mean of ratios = pooled ratio when weighted by count).
+    /// Impact depends on between-session mean RR variance — typically small for
+    /// a single individual but may matter for cross-profile comparison.
     private func computeWeightedHRV(_ summaries: [SessionSummary]) -> (rmssd: Double, sdnn: Double, pnn50: Double, totalRRCount: Int) {
         let totalRRCount = summaries.reduce(0) { $0 + $1.rrCount }
         guard totalRRCount > 0 else { return (0, 0, 0, 0) }
