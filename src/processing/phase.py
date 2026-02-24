@@ -81,8 +81,9 @@ class PhaseDynamics:
     # Dwell time in current mode (seconds)
     dwell_time: float = 0.0
 
-    # Acceleration magnitude for movement annotation
-    acceleration_magnitude: float = 0.0
+    # Second derivative of mode_score (scalar), NOT 3D trajectory acceleration.
+    # The 3D trajectory acceleration is stored in the `curvature` field.
+    mode_score_acceleration: float = 0.0
 
 
 # Default/empty dynamics for cold start
@@ -206,7 +207,7 @@ class PhaseTrajectory:
                 movement_aware_label=soft_mode.primary_mode,
                 mode_status="unknown",
                 dwell_time=0.0,
-                acceleration_magnitude=0.0
+                mode_score_acceleration=0.0
             )
 
         # Get recent states for derivative computation
@@ -306,7 +307,7 @@ class PhaseTrajectory:
         # Generate movement annotation
         movement_annotation = generate_movement_annotation(
             velocity_magnitude=abs(mode_score_velocity),
-            acceleration_magnitude=mode_score_accel,
+            mode_score_acceleration=mode_score_accel,
             previous_mode=mode_meta.get('previous_mode'),
             dwell_time=mode_meta.get('dwell_time', 0.0)
         )
@@ -336,7 +337,7 @@ class PhaseTrajectory:
             movement_aware_label=movement_aware_label,
             mode_status=mode_meta.get('state_status', 'unknown'),
             dwell_time=mode_meta.get('dwell_time', 0.0),
-            acceleration_magnitude=abs(mode_score_accel)
+            mode_score_acceleration=abs(mode_score_accel)
         )
 
     def _infer_phase_label(

@@ -247,7 +247,7 @@ class TestGenerateMovementAnnotation:
     def test_settled(self):
         annotation = generate_movement_annotation(
             velocity_magnitude=0.01,
-            acceleration_magnitude=0.0,
+            mode_score_acceleration=0.0,
             previous_mode=None,
             dwell_time=10.0,
         )
@@ -256,7 +256,7 @@ class TestGenerateMovementAnnotation:
     def test_still_with_approach(self):
         annotation = generate_movement_annotation(
             velocity_magnitude=0.01,
-            acceleration_magnitude=0.0,
+            mode_score_acceleration=0.0,
             previous_mode="heightened alertness",
             dwell_time=2.0,  # within RECENT_TRANSITION_WINDOW
         )
@@ -266,7 +266,7 @@ class TestGenerateMovementAnnotation:
     def test_accelerating(self):
         annotation = generate_movement_annotation(
             velocity_magnitude=0.1,
-            acceleration_magnitude=0.05,
+            mode_score_acceleration=0.05,
             previous_mode=None,
             dwell_time=1.0,
         )

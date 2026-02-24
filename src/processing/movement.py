@@ -563,7 +563,7 @@ def detect_mode_with_hysteresis(
 
 def generate_movement_annotation(
     velocity_magnitude: Optional[float],
-    acceleration_magnitude: Optional[float],
+    mode_score_acceleration: Optional[float],
     previous_mode: Optional[str],
     dwell_time: float,
     velocity_threshold: float = VELOCITY_THRESHOLD,
@@ -578,7 +578,7 @@ def generate_movement_annotation(
 
     Args:
         velocity_magnitude: Rate of change of calm_score
-        acceleration_magnitude: Second derivative of calm_score
+        mode_score_acceleration: Second derivative of calm_score (mode_score)
         previous_mode: Mode transitioned from (if any)
         dwell_time: Seconds in current region
         velocity_threshold: Below this is "still"
@@ -608,10 +608,10 @@ def generate_movement_annotation(
         parts.append("still")
     else:
         # Moving - check acceleration
-        if acceleration_magnitude is not None:
-            if acceleration_magnitude > acceleration_threshold:
+        if mode_score_acceleration is not None:
+            if mode_score_acceleration > acceleration_threshold:
                 parts.append("accelerating")
-            elif acceleration_magnitude < -acceleration_threshold:
+            elif mode_score_acceleration < -acceleration_threshold:
                 parts.append("decelerating")
             else:
                 parts.append("moving")
