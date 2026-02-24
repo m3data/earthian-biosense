@@ -163,7 +163,7 @@ Autonomic mode inference based on metric patterns:
 | `subtle alertness` | Mild watchfulness |
 | `transitional` | Between states |
 | `settling` | Moving toward parasympathetic |
-| `emerging coherence` | Coherence beginning to establish |
+| `rhythmic settling` | Rhythmic settling establishing |
 
 ## Data Format
 

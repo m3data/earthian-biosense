@@ -15,7 +15,7 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 - **Custom HRV metrics**: amplitude, entrainment (breath-heart coupling), breath rate estimation
 - **Phase space trajectory**: tracks movement through a 3D manifold (entrainment, breath, amplitude)
 - **Dynamics computation**: velocity, curvature, stability — not just where you are, but how you're moving
-- **Mode classification**: 6-mode system from heightened alertness to coherent presence
+- **Mode classification**: 6-mode system from heightened alertness to settled presence
 - **JSONL export**: full trajectory data for post-session analysis
 
 ## Capture Methods
@@ -92,8 +92,8 @@ Six modes emerge from position in feature space (entrainment, breath steadiness,
 | `subtle alertness` | Attentive but not reactive |
 | `transitional` | Moving between states |
 | `settling` | Approaching coherence |
-| `emerging coherence` | High entrainment, steady breath |
-| `coherent presence` | Stable coherent dwelling |
+| `rhythmic settling` | High entrainment, steady breath |
+| `settled presence` | Sustained rhythmic settling |
 
 Modes use soft classification — you're never fully "in" one mode, but have membership across all six.
 
@@ -128,15 +128,15 @@ Each processed record contains:
     "movement_aware_label": "settling",
     "soft_mode": {
       "primary": "settling",
-      "secondary": "emerging coherence",
+      "secondary": "rhythmic settling",
       "ambiguity": 0.23,
       "membership": {
         "heightened alertness": 0.02,
         "subtle alertness": 0.08,
         "transitional": 0.15,
         "settling": 0.45,
-        "emerging coherence": 0.25,
-        "coherent presence": 0.05
+        "rhythmic settling": 0.25,
+        "settled presence": 0.05
       }
     }
   }

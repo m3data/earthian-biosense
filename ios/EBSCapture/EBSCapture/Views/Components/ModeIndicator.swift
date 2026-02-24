@@ -61,9 +61,9 @@ struct ModeIndicator: View {
             return .amber
         case "settling":
             return .sage
-        case "emerging coherence":
+        case "rhythmic settling":
             return .sage
-        case "coherent presence":
+        case "settled presence":
             return .settled
         default:
             return .textDim
@@ -90,8 +90,8 @@ struct ModeIndicator: View {
         ModeIndicator(mode: "subtle alertness", status: "established", annotation: "still")
         ModeIndicator(mode: "transitional", status: "unknown", annotation: "moving from settling")
         ModeIndicator(mode: "settling", status: "provisional", annotation: "decelerating")
-        ModeIndicator(mode: "emerging coherence", status: "established", annotation: nil)
-        ModeIndicator(mode: "coherent presence", status: "established", annotation: "settled")
+        ModeIndicator(mode: "rhythmic settling", status: "established", annotation: nil)
+        ModeIndicator(mode: "settled presence", status: "established", annotation: "settled")
     }
     .padding()
     .background(Color.bg)

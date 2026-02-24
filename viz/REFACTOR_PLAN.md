@@ -69,7 +69,7 @@ Replace clinical colors with grounded, body-resonant tones.
 'subtle alertness': [220, 180, 100],      // yellow
 'settling': [100, 160, 200],              // clinical blue
 'transitional': [180, 150, 200],          // purple
-'emerging coherence': [120, 200, 160],    // mint
+'rhythmic settling': [120, 200, 160],     // mint
 'coherent': [100, 220, 180],              // teal
 'deep coherence': [80, 240, 200]          // bright teal
 ```

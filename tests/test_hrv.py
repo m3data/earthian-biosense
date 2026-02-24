@@ -171,7 +171,7 @@ class TestComputeMode:
             amplitude=160, entrainment=0.8, breath_steady=True, volatility=0.03
         )
         assert score > 0.6
-        assert label in ("emerging coherence", "coherent presence")
+        assert label in ("rhythmic settling", "settled presence")
 
     def test_low_calm_alertness(self):
         label, score = compute_mode(

@@ -34,7 +34,7 @@ Enables clean `from src.processing.hrv import ...` imports.
 - `rr_constant` — 20 identical intervals (zero variance edge case)
 
 **HRVMetrics instances** (pre-computed for modules that consume metrics):
-- `metrics_calm` — high entrainment, steady breath, coherent presence
+- `metrics_calm` — high entrainment, steady breath, settled presence
 - `metrics_alert` — low entrainment, high volatility, heightened alertness
 - `metrics_transitional` — mid-range values
 

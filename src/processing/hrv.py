@@ -256,9 +256,9 @@ def compute_mode(amplitude: int, entrainment: float, breath_steady: bool, volati
     elif calm_score < 0.65:
         label = "settling"
     elif calm_score < 0.8:
-        label = "emerging coherence"
+        label = "rhythmic settling"
     else:
-        label = "coherent presence"
+        label = "settled presence"
 
     return label, calm_score
 

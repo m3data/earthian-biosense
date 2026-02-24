@@ -95,8 +95,8 @@ Six modes with soft membership:
 | `subtle alertness` | Attentive, moderate stability |
 | `transitional` | Moving between states |
 | `settling` | Approaching coherence |
-| `emerging coherence` | High entrainment, steady breath |
-| `coherent presence` | Stable dwelling in coherent region |
+| `rhythmic settling` | High entrainment, steady breath |
+| `settled presence` | Sustained rhythmic settling |
 
 **Implementation:**
 - Store 6 centroids in feature space

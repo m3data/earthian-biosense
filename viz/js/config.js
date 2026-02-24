@@ -95,8 +95,8 @@ export const MODE_COLORS = {
   'subtle alertness': [195, 140, 95],       // amber ochre — attending
   'transitional': [175, 130, 140],          // dusty rose — moving between
   'settling': [130, 155, 130],              // sage moss — easing down
-  'emerging coherence': [115, 155, 155],    // soft teal — gathering
-  'coherent presence': [100, 140, 160],     // slate blue — dwelling
+  'rhythmic settling': [115, 155, 155],     // soft teal — gathering
+  'settled presence': [100, 140, 160],      // slate blue — dwelling
   'coherent': [100, 140, 160],              // slate blue (alias)
   'deep coherence': [95, 130, 150]          // deep slate — resting
 };

@@ -72,7 +72,7 @@ def rr_constant():
 
 @pytest.fixture
 def metrics_calm():
-    """High entrainment, steady breath, coherent presence."""
+    """High entrainment, steady breath, settled presence."""
     return HRVMetrics(
         mean_rr=1000.0,
         min_rr=920,
@@ -83,7 +83,7 @@ def metrics_calm():
         breath_rate=6.0,
         breath_steady=True,
         rr_volatility=0.04,
-        mode_label="coherent presence",
+        mode_label="settled presence",
         mode_score=0.85,
     )
 

@@ -368,9 +368,9 @@ enum HRVProcessor {
         } else if calmScore < 0.65 {
             label = "settling"
         } else if calmScore < 0.8 {
-            label = "emerging coherence"
+            label = "rhythmic settling"
         } else {
-            label = "coherent presence"
+            label = "settled presence"
         }
 
         return (label, calmScore)

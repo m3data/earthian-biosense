@@ -195,8 +195,8 @@ An inferred autonomic state based on the pattern of other metrics. Mode represen
 | `subtle alertness` | Low-moderate coherence, moderate amplitude, stable | Watchful but not activated - attentive calm |
 | `transitional` | Mixed signals, moderate volatility | Between states, no clear pattern |
 | `settling` | Rising coherence or amplitude, decreasing volatility | Moving toward parasympathetic dominance |
-| `emerging coherence` | Coherence rising above threshold, stabilizing | Coherent pattern establishing |
-| `coherent` | High coherence, expanded amplitude, low volatility | Established rhythmic coherence |
+| `rhythmic settling` | High entrainment, steady breath, stabilizing | Rhythmic settling establishing |
+| `settled presence` | High entrainment, expanded amplitude, low volatility | Sustained rhythmic settling |
 
 ### Calculation
 

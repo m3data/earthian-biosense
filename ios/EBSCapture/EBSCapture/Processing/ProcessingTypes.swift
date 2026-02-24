@@ -173,8 +173,8 @@ enum AutonomicMode: String, CaseIterable, Codable {
     case subtleAlertness = "subtle alertness"
     case transitional = "transitional"
     case settling = "settling"
-    case emergingCoherence = "emerging coherence"
-    case coherentPresence = "coherent presence"
+    case rhythmicSettling = "rhythmic settling"
+    case settledPresence = "settled presence"
 
     /// Mode centroids in feature space
     /// Features: (entrainment, breathSteadyScore, ampNorm, inverseVolatility)
@@ -208,14 +208,14 @@ enum AutonomicMode: String, CaseIterable, Codable {
                 "ampNorm": 0.55,
                 "inverseVolatility": 0.75
             ]
-        case .emergingCoherence:
+        case .rhythmicSettling:
             return [
                 "entrainment": 0.65,
                 "breathSteadyScore": 1.0,
                 "ampNorm": 0.65,
                 "inverseVolatility": 0.85
             ]
-        case .coherentPresence:
+        case .settledPresence:
             return [
                 "entrainment": 0.8,
                 "breathSteadyScore": 1.0,
@@ -273,14 +273,14 @@ let defaultHysteresis: [String: HysteresisConfig] = [
         provisionalSamples: 3, establishedSamples: 10,
         entryPenalty: 0.8, settledBonus: 1.1
     ),
-    "emerging coherence": HysteresisConfig(
-        modeName: "emerging coherence",
+    "rhythmic settling": HysteresisConfig(
+        modeName: "rhythmic settling",
         entryThreshold: 0.20, exitThreshold: 0.26,
         provisionalSamples: 3, establishedSamples: 10,
         entryPenalty: 0.8, settledBonus: 1.1
     ),
-    "coherent presence": HysteresisConfig(
-        modeName: "coherent presence",
+    "settled presence": HysteresisConfig(
+        modeName: "settled presence",
         entryThreshold: 0.22, exitThreshold: 0.28,
         provisionalSamples: 5, establishedSamples: 15,
         entryPenalty: 0.75, settledBonus: 1.15

@@ -239,14 +239,14 @@ MODE_CENTROIDS = {
         'inverse_volatility': 0.75
     },
     # calm_score midpoint: 0.725 (0.65-0.8)
-    'emerging coherence': {
+    'rhythmic settling': {
         'entrainment': 0.65,
         'breath_steady_score': 1.0,
         'amp_norm': 0.65,
         'inverse_volatility': 0.85
     },
     # calm_score midpoint: 0.9 (>= 0.8)
-    'coherent presence': {
+    'settled presence': {
         'entrainment': 0.8,
         'breath_steady_score': 1.0,
         'amp_norm': 0.75,
@@ -304,8 +304,8 @@ DEFAULT_HYSTERESIS = {
         entry_penalty=0.8,
         settled_bonus=1.1
     ),
-    'emerging coherence': HysteresisConfig(
-        mode_name='emerging coherence',
+    'rhythmic settling': HysteresisConfig(
+        mode_name='rhythmic settling',
         entry_threshold=0.20,
         exit_threshold=0.26,
         provisional_samples=3,
@@ -313,8 +313,8 @@ DEFAULT_HYSTERESIS = {
         entry_penalty=0.8,
         settled_bonus=1.1
     ),
-    'coherent presence': HysteresisConfig(
-        mode_name='coherent presence',
+    'settled presence': HysteresisConfig(
+        mode_name='settled presence',
         entry_threshold=0.22,  # hardest to enter
         exit_threshold=0.28,
         provisional_samples=5,

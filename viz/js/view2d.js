@@ -277,7 +277,7 @@ function drawLegend(p) {
     ['subtle alertness', 'subtle alertness'],
     ['transitional', 'transitional'],
     ['settling', 'settling'],
-    ['emerging coherence', 'emerging'],
+    ['rhythmic settling', 'rhythmic'],
     ['deep coherence', 'coherent']
   ];
 

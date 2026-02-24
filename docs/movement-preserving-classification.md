@@ -1,6 +1,6 @@
 # Movement-Preserving Classification
 
-This document describes the movement-preserving classification system introduced in EBS v1.1.0. The key insight: **threshold cuts discard movement**. "Settling from heightened alertness" is fundamentally different from "settling from emerging coherence" — but hard thresholds give them the same label.
+This document describes the movement-preserving classification system introduced in EBS v1.1.0. The key insight: **threshold cuts discard movement**. "Settling from heightened alertness" is fundamentally different from "settling from rhythmic settling" — but hard thresholds give them the same label.
 
 ## Why Movement Matters
 
@@ -80,21 +80,21 @@ flowchart LR
 
     subgraph settling_zone["Settling Zone"]
         se["settling"]
-        ec["emerging<br/>coherence"]
+        rs["rhythmic<br/>settling"]
     end
 
-    subgraph coherent["Coherent Zone"]
-        cp["coherent<br/>presence"]
+    subgraph settled["Settled Zone"]
+        sp["settled<br/>presence"]
     end
 
     ha --> sa
     sa --> tr
     tr --> se
-    se --> ec
-    ec --> cp
+    se --> rs
+    rs --> sp
 
     ha -.->|"rapid shift"| se
-    sa -.->|"direct path"| ec
+    sa -.->|"direct path"| rs
 ```
 
 ### Mode Centroids
@@ -105,8 +105,8 @@ flowchart LR
 | subtle alertness | 0.25 | 0.3 | 0.35 | 0.4 |
 | transitional | 0.4 | 0.5 | 0.45 | 0.6 |
 | settling | 0.55 | 0.8 | 0.55 | 0.75 |
-| emerging coherence | 0.65 | 1.0 | 0.65 | 0.85 |
-| coherent presence | 0.8 | 1.0 | 0.75 | 0.95 |
+| rhythmic settling | 0.65 | 1.0 | 0.65 | 0.85 |
+| settled presence | 0.8 | 1.0 | 0.75 | 0.95 |
 
 ### Feature Weights
 
@@ -133,14 +133,14 @@ flowchart TD
 
 ### Example Membership
 
-At a boundary between settling and emerging coherence:
+At a boundary between settling and rhythmic settling:
 ```
 settling:           0.38
-emerging coherence: 0.35
+rhythmic settling: 0.35
 transitional:       0.15
 subtle alertness:   0.08
 heightened alertness: 0.03
-coherent presence:  0.01
+settled presence:  0.01
 ---
 ambiguity: 0.97 (1 - (0.38 - 0.35))
 ```
@@ -183,10 +183,10 @@ stateDiagram-v2
 | subtle alertness | 0.18 | 0.24 | 3 samples | 8 samples |
 | transitional | 0.17 | 0.22 | 2 samples | 5 samples |
 | settling | 0.19 | 0.25 | 3 samples | 10 samples |
-| emerging coherence | 0.20 | 0.26 | 3 samples | 10 samples |
-| coherent presence | 0.22 | 0.28 | 5 samples | 15 samples |
+| rhythmic settling | 0.20 | 0.26 | 3 samples | 10 samples |
+| settled presence | 0.22 | 0.28 | 5 samples | 15 samples |
 
-**Note:** Deeper states (coherent presence) are harder to enter but also harder to leave — they have "stickiness" that respects the phenomenology of settled states.
+**Note:** Deeper states (settled presence) are harder to enter but also harder to leave — they have "stickiness" that respects the phenomenology of settled states.
 
 ## Movement Annotation
 
@@ -222,7 +222,7 @@ flowchart TD
 | Just entered settling from heightened alertness | `still from heightened alertness` | `settling (still from heightened alertness)` |
 | Been in settling for 10 seconds | `settled` | `settling` |
 | Moving through transitional | `moving` | `transitional (moving)` |
-| Rapidly entering coherent presence | `accelerating from settling` | `coherent presence (accelerating from settling)` |
+| Rapidly entering settled presence | `accelerating from settling` | `settled presence (accelerating from settling)` |
 
 ## Rupture Oscillation Detection
 
@@ -266,12 +266,12 @@ v1.1.0 sessions include:
   "phase": {
     "soft_mode": {
       "primary": "settling",
-      "secondary": "emerging coherence",
+      "secondary": "rhythmic settling",
       "ambiguity": 0.92,
       "distribution_shift": 0.003,
       "membership": {
         "settling": 0.38,
-        "emerging coherence": 0.35,
+        "rhythmic settling": 0.35,
         "transitional": 0.15
       }
     },

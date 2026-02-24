@@ -67,8 +67,8 @@ Each JSONL line contains:
 | `subtle alertness` | Mild watchfulness, not relaxed but not activated |
 | `transitional` | Between states, no clear mode |
 | `settling` | Moving toward parasympathetic, calming |
-| `emerging coherence` | Coherence beginning to establish |
-| `coherent` | Established rhythmic coherence |
+| `rhythmic settling` | Rhythmic settling establishing |
+| `settled presence` | Sustained rhythmic settling |
 
 ## Interpretation Guidelines
 

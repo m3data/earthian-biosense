@@ -90,7 +90,7 @@ NICHE_PHASE_SIGNATURES = {
     },
     Niche.SETTLING_DAWN: {
         "stability_min": 0.5,
-        "phase_labels": ["settling into entrainment", "emerging coherence"]
+        "phase_labels": ["settling into entrainment", "rhythmic settling"]
     },
     Niche.SETTLING_ELDER: {
         "coherence_min": 0.5,

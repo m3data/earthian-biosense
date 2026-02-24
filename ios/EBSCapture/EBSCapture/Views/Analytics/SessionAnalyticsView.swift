@@ -338,8 +338,8 @@ struct SessionAnalyticsView: View {
 
     private func modeColor(_ mode: String) -> Color {
         switch mode.lowercased() {
-        case "coherent presence": return .sage
-        case "emerging coherence": return .sage.opacity(0.7)
+        case "settled presence": return .sage
+        case "rhythmic settling": return .sage.opacity(0.7)
         case "settling": return .ochre
         case "transitional": return .journey
         case "subtle alertness": return .slate
