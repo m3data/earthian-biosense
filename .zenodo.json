@@ -1,0 +1,30 @@
+{
+  "title": "EarthianBioSense (v0.2.1)",
+  "description": "Biosignal acquisition and analysis for ecological coherence research. Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space with mode classification and entrainment detection.",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Mytka, Mathew Mark",
+      "affiliation": "University of Wollongong"
+    }
+  ],
+  "keywords": [
+    "biosignal processing",
+    "heart rate variability",
+    "entrainment",
+    "coherence",
+    "phase space",
+    "autonomic nervous system",
+    "human-AI interaction"
+  ],
+  "license": {
+    "id": "other-open"
+  },
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/m3data/earthian-biosense",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
