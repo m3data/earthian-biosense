@@ -386,6 +386,40 @@ h1 {
 .swatch[data-mode="emerging"] { background: rgb(115, 155, 155); }
 .swatch[data-mode="coherent"] { background: rgb(100, 140, 160); }
 
+/* Live Button */
+.live-btn {
+  background: #1a1a24;
+  border: 1px solid #333;
+  color: #666;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 10px;
+}
+
+.live-btn:hover {
+  border-color: #555;
+  color: #999;
+}
+
+.live-btn.connected {
+  border-color: rgb(130, 155, 130);
+  color: rgb(130, 155, 130);
+  background: rgba(130, 155, 130, 0.1);
+}
+
+.live-btn.connecting {
+  border-color: rgb(195, 140, 95);
+  color: rgb(195, 140, 95);
+}
+
+.live-btn.error {
+  border-color: rgb(205, 110, 70);
+  color: rgb(205, 110, 70);
+}
+
 /* View Hint */
 #view-hint {
   font-size: 10px;

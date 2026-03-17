@@ -200,7 +200,12 @@ class TerminalUI:
                     curvature=self.latest_dynamics.curvature,
                     stability=self.latest_dynamics.stability,
                     entrainment=self.latest_metrics.entrainment,
-                    phase_label=self.latest_dynamics.phase_label
+                    phase_label=self.latest_dynamics.phase_label,
+                    coherence=self.latest_coherence,
+                    mode=self.latest_metrics.mode_label,
+                    amplitude=self.latest_metrics.amplitude,
+                    breath_rate=self.latest_metrics.breath_rate,
+                    entrainment_label=self.latest_metrics.entrainment_label
                 ))
 
         # Calculate stats
@@ -254,7 +259,7 @@ async def main():
     print("\nEarthianBioSense v0.1")
 
     # Start WebSocket server
-    ws_server = WebSocketServer(host="localhost", port=8765)
+    ws_server = WebSocketServer(host="localhost", port=8765, allow_multiple_clients=True)
     await ws_server.start()
 
     print("Scanning for Polar H10...\n")

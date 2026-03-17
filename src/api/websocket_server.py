@@ -191,13 +191,17 @@ class WebSocketServer:
         curvature: float,
         stability: float,
         entrainment: float,
-        phase_label: str
+        phase_label: str,
+        coherence: float = 0.0,
+        mode: str = "",
+        amplitude: int = 0,
+        breath_rate: float | None = None,
+        entrainment_label: str = ""
     ):
         """Broadcast phase dynamics to all connected clients (1Hz).
 
         Note: 'entrainment' is breath-heart phase coupling (local sync).
-        Coherence (trajectory integrity) is a separate metric computed
-        from trajectory autocorrelation - not yet implemented.
+        'coherence' is trajectory integrity (global metric).
         """
         if not self.clients:
             return
@@ -211,7 +215,12 @@ class WebSocketServer:
             "curvature": round(curvature, 4),
             "stability": round(stability, 4),
             "entrainment": round(entrainment, 3),  # breath-heart sync
-            "phase_label": phase_label
+            "phase_label": phase_label,
+            "coherence": round(coherence, 4),
+            "mode": mode,
+            "amplitude": amplitude,
+            "breath_rate": round(breath_rate, 1) if breath_rate else None,
+            "entrainment_label": entrainment_label
         }
 
         # Broadcast to all clients

@@ -20,6 +20,10 @@ const state = {
   p5Instance: null,
   dwellDensity: [],
 
+  // Live mode state
+  isLive: false,
+  liveSocket: null,
+
   // Dyadic session state
   isDyadic: false,
   participants: null,        // { A: { strap: '...' }, B: { strap: '...' } }
@@ -238,8 +242,112 @@ function setupSidebar() {
   });
 }
 
+// === Live WebSocket Connection ===
+function connectLive() {
+  const btn = document.getElementById('live-btn');
+
+  if (state.isLive && state.liveSocket) {
+    // Disconnect
+    state.liveSocket.close();
+    state.liveSocket = null;
+    state.isLive = false;
+    btn.textContent = 'Connect Live';
+    btn.className = 'live-btn';
+    return;
+  }
+
+  btn.textContent = 'Connecting...';
+  btn.className = 'live-btn connecting';
+
+  const ws = new WebSocket('ws://localhost:8765');
+
+  ws.onopen = () => {
+    // Send hello handshake
+    ws.send(JSON.stringify({ type: 'hello', client: 'viz-live' }));
+    state.liveSocket = ws;
+    state.isLive = true;
+    state.isPlaying = false;
+    state.isDyadic = false;
+    state.sessionData = [];
+    state.currentIndex = 0;
+
+    btn.textContent = 'Live';
+    btn.className = 'live-btn connected';
+    document.getElementById('session-name').textContent = 'live stream';
+    document.getElementById('phase-label').textContent = '— waiting for data —';
+
+    // Auto-reveal details
+    if (!state.detailsRevealed) {
+      toggleDetails();
+    }
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'phase') {
+      // Transform WS message into viz sample format
+      const sample = {
+        ts: data.ts,
+        hr: data.hr,
+        metrics: {
+          mode: data.mode || '',
+          amp: data.amplitude || 50,
+          breath: data.breath_rate || null,
+          ent_label: data.entrainment_label || '',
+          coh: data.coherence || 0
+        },
+        phase: {
+          coherence: data.coherence || 0,
+          stability: data.stability || 0.5,
+          position: data.position || [0, 0.5, 0.5],
+          phase_label: data.phase_label || ''
+        }
+      };
+
+      state.sessionData.push(sample);
+
+      // Keep buffer bounded (10 min at 1Hz = 600 samples)
+      if (state.sessionData.length > 600) {
+        state.sessionData.shift();
+      }
+
+      // Always show latest in live mode
+      state.currentIndex = state.sessionData.length - 1;
+      updateUI();
+    }
+  };
+
+  ws.onerror = () => {
+    btn.textContent = 'No connection';
+    btn.className = 'live-btn error';
+    setTimeout(() => {
+      if (!state.isLive) {
+        btn.textContent = 'Connect Live';
+        btn.className = 'live-btn';
+      }
+    }, 3000);
+  };
+
+  ws.onclose = () => {
+    if (state.isLive) {
+      state.isLive = false;
+      state.liveSocket = null;
+      btn.textContent = 'Disconnected';
+      btn.className = 'live-btn error';
+      setTimeout(() => {
+        btn.textContent = 'Connect Live';
+        btn.className = 'live-btn';
+      }, 3000);
+    }
+  };
+}
+
 // === Event Handlers ===
 function setupEventHandlers() {
+  // Live connection
+  document.getElementById('live-btn').addEventListener('click', connectLive);
+
   // Details toggle
   document.getElementById('details-toggle').addEventListener('click', toggleDetails);
 
