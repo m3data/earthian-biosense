@@ -1,7 +1,7 @@
 # EarthianBioSense
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.2.1-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.3.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
 
 Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP). Part of a research programme investigating how adaptive capacity can be sensed, supported, and stewarded through somatic and computational signals.
@@ -19,6 +19,29 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 - **JSONL export**: full trajectory data for post-session analysis
 
 ## Capture Methods
+
+### macOS Desktop App — v0.1.0
+
+Native macOS app built with Tauri v2 (Rust + webview). Designed for long-duration background data collection — start a session, hide the window, come back hours later.
+
+Location: `desktop/`
+
+**Features:**
+- **11MB native app**, ~0.4% CPU idle
+- BLE connection to Polar H10 via btleplug (CoreBluetooth)
+- Full HRV processing in Rust (32 unit tests) — port of the Python pipeline
+- Live phase space visualisation in the webview
+- Session recording to JSONL (schema 1.1.0, compatible with all other tools)
+- Session replay from the same app
+
+**Install:** Download the DMG from [GitHub Releases](https://github.com/m3data/earthian-biosense/releases), or build from source:
+
+```bash
+cd desktop
+cargo tauri build
+```
+
+Requires: macOS 12+, Rust toolchain, Polar H10 chest strap.
 
 ### iOS App (EBSCapture) — v0.2
 
@@ -39,7 +62,7 @@ Location: `ios/EBSCapture/`
 
 ### Python Terminal App
 
-Desktop capture with real-time ASCII visualization.
+Desktop capture with real-time ASCII visualization. The desktop app above is the recommended replacement for new sessions.
 
 ```bash
 python src/app.py
@@ -51,6 +74,16 @@ python src/app.py
 - Direct session recording
 
 ## Installation
+
+### macOS Desktop App (recommended)
+
+Download from [Releases](https://github.com/m3data/earthian-biosense/releases) or build:
+
+```bash
+cd desktop
+cargo tauri build
+open src-tauri/target/release/bundle/macos/EarthianBioSense.app
+```
 
 ### Python (processing + desktop capture)
 
@@ -164,42 +197,30 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Capture Layer                        │
-├────────────────────────┬────────────────────────────────┤
-│   iOS App (EBSCapture) │   Python Terminal App          │
-│   v0.2                 │                                │
-│   - Mobile capture     │   - Desktop capture            │
-│   - On-device HRV      │   - Real-time visualization    │
-│   - Real-time feedback │   - WebSocket streaming        │
-│   - Profile analytics  │                                │
-│   - Session insights   │                                │
-└───────────┬────────────┴────────────────┬───────────────┘
-            │                             │
-            ▼                             ▼
-┌─────────────────────────────────────────────────────────┐
-│                    JSONL Sessions                       │
-│   iOS: enriched with metrics (amp, ent, coh, mode)      │
-│   Python: raw HR/RR or enriched via processing script   │
-└───────────────────────────┬─────────────────────────────┘
-                            │
-                            ▼ (optional for iOS exports)
-┌─────────────────────────────────────────────────────────┐
-│              Processing Pipeline (Python)               │
-│  - Full HRV metrics computation                         │
-│  - Phase trajectory tracking                            │
-│  - Mode classification with soft membership             │
-│  - Movement annotation                                  │
-└───────────────────────────┬─────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│               Processed JSONL Sessions                  │
-│     (enriched with metrics, phase, soft modes)          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Capture Layer                                │
+├──────────────────────┬───────────────────────┬───────────────────────┤
+│  macOS Desktop App   │  iOS App (EBSCapture) │  Python Terminal App  │
+│  v0.1.0 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
+│  - Long-duration     │  - Mobile capture      │  - Desktop capture   │
+│  - Background BLE    │  - On-device HRV       │  - WebSocket stream  │
+│  - Rust HRV pipeline │  - Real-time feedback  │  - ASCII viz         │
+│  - Live phase viz    │  - Profile analytics   │                      │
+│  - Session replay    │  - Session insights    │                      │
+└──────────┬───────────┴───────────┬───────────┴───────────┬───────────┘
+           │                       │                       │
+           ▼                       ▼                       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    JSONL Sessions (schema 1.1.0)                     │
+│   All three apps write the same format — sessions are portable       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Requirements
+
+**macOS desktop app:**
+- macOS 12+ (Apple Silicon or Intel)
+- To build from source: Rust toolchain (`rustup`), Tauri CLI (`cargo install tauri-cli`)
 
 **Python processing:**
 - Python 3.11+
@@ -208,10 +229,9 @@ Coherence emerges when computational (Semantic Climate) and somatic (EBS) signat
 **iOS capture:**
 - macOS with Xcode 15+
 - iOS 16+ device (Charts framework; BLE requires physical device)
-- Polar H10 heart rate monitor
 
 **Hardware:**
-- Polar H10 chest strap (~$90)
+- Polar H10 chest strap (~$90 AUD)
 - Requires skin contact to activate
 
 ## License
