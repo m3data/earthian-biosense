@@ -28,6 +28,14 @@ Thumbs.db
 sessions/
 *.log
 
+# Rust / Tauri
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/icons/android/
+desktop/src-tauri/icons/ios/
+desktop/src-tauri/icons/Square*.png
+desktop/src-tauri/icons/StoreLogo.png
+
 # Claude session context (local only)
 .claude/
 CLAUDE.md

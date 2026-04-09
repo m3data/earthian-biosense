@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EarthianBioSense</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="css/replay.css">
+  <style>
+    /* === Session Bar (connection + session controls) === */
+    #session-bar {
+      background: #0d0d12;
+      border-bottom: 1px solid #1a1a24;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      z-index: 50;
+    }
+
+    #session-bar .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    #session-bar .status-dot.idle { background: #555; }
+    #session-bar .status-dot.connected { background: rgb(130, 155, 130); }
+    #session-bar .status-dot.error { background: rgb(205, 110, 70); }
+
+    #session-bar .bar-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: #888;
+      letter-spacing: 0.03em;
+      margin-right: 8px;
+    }
+
+    #session-bar .bar-separator {
+      width: 1px;
+      height: 20px;
+      background: #2a2a34;
+      flex-shrink: 0;
+    }
+
+    #session-bar button {
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 4px;
+    }
+
+    #session-bar button.primary {
+      background: rgb(130, 155, 130);
+      color: #0a0a0f;
+      border-color: rgb(130, 155, 130);
+      font-weight: 500;
+    }
+    #session-bar button.primary:hover {
+      background: rgb(150, 175, 150);
+    }
+
+    #session-bar button.danger {
+      border-color: rgb(205, 110, 70);
+      color: rgb(205, 110, 70);
+    }
+    #session-bar button.danger:hover {
+      background: rgba(205, 110, 70, 0.1);
+    }
+
+    #session-bar .live-indicator {
+      font-size: 10px;
+      color: rgb(130, 155, 130);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #session-bar .live-indicator .pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgb(130, 155, 130);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    #session-bar .live-hr {
+      font-size: 18px;
+      font-weight: 300;
+      color: #aaa;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #session-bar .live-hr-unit {
+      font-size: 10px;
+      color: #555;
+    }
+
+    #session-bar .battery-value {
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* === Scan Panel (overlay) === */
+    #scan-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #12121a;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 340px;
+      z-index: 200;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    #scan-panel h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 16px;
+    }
+
+    #scan-panel .device-list {
+      list-style: none;
+      margin: 12px 0;
+    }
+    #scan-panel .device-list li {
+      padding: 10px 12px;
+      border: 1px solid #2a2a3a;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      font-size: 12px;
+    }
+    #scan-panel .device-list li:hover { border-color: rgb(195, 140, 95); }
+    #scan-panel .device-list li.selected { border-color: rgb(130, 155, 130); }
+
+    .device-name { font-weight: 500; color: #ccc; }
+    .device-label { font-size: 11px; color: #666; margin-left: 8px; }
+
+    #scan-panel-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 199;
+    }
+
+    /* Session controls in bar */
+    #session-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* File input area */
+    #file-input-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    /* Log panel */
+    #log-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #0d0d12;
+      border-top: 1px solid #1a1a24;
+      z-index: 50;
+      max-height: 120px;
+      transition: max-height 0.2s;
+    }
+
+    #log-panel.collapsed {
+      max-height: 28px;
+    }
+
+    #log-toggle {
+      background: transparent;
+      border: none;
+      color: #555;
+      font-size: 10px;
+      padding: 6px 12px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      letter-spacing: 0.04em;
+    }
+    #log-toggle:hover {
+      color: #888;
+      background: transparent;
+      border: none;
+    }
+
+    #log {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      color: #555;
+      max-height: 88px;
+      overflow-y: auto;
+      padding: 0 12px 8px;
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- ================================================================
+       SESSION BAR — Connection, session controls, live metrics
+       ================================================================ -->
+  <div id="session-bar">
+    <span id="status-dot" class="status-dot idle"></span>
+    <span class="bar-title">EarthianBioSense</span>
+
+    <!-- Show when NOT connected -->
+    <button id="btn-open-scan">
+      <i class="ph ph-bluetooth"></i> Connect Device
+    </button>
+
+    <!-- Show when connected -->
+    <span id="session-controls" class="hidden">
+      <button id="btn-start-session" class="primary">
+        <i class="ph ph-record"></i> Start Session
+      </button>
+      <button id="btn-stop-session" class="danger hidden">
+        <i class="ph ph-stop"></i> Stop Session
+      </button>
+
+      <span class="bar-separator"></span>
+
+      <span class="live-hr" id="live-hr">--</span>
+      <span class="live-hr-unit">bpm</span>
+
+      <span class="bar-separator"></span>
+
+      <span class="battery-value" id="battery-value"></span>
+      <span id="live-contact" class="hidden"></span>
+    </span>
+
+    <button id="btn-disconnect" class="danger hidden">Disconnect</button>
+
+    <span style="flex:1"></span>
+
+    <span id="session-name" style="font-size:11px;color:#555"></span>
+  </div>
+
+  <!-- ================================================================
+       SCAN PANEL (Modal Overlay)
+       ================================================================ -->
+  <div id="scan-panel-backdrop" class="hidden"></div>
+  <div id="scan-panel" class="hidden">
+    <h2><i class="ph ph-bluetooth"></i> Connect Device</h2>
+    <button id="btn-scan">Scan for Polar H10</button>
+    <ul id="device-list" class="device-list"></ul>
+    <button id="btn-connect" class="primary hidden">Connect</button>
+    <div style="margin-top:12px">
+      <button id="btn-cancel-scan" style="font-size:11px;color:#666">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       REFERENCE SIDEBAR — Same as viz/replay.html
+       ================================================================ -->
+  <div id="sidebar" class="closed">
+    <button id="sidebar-toggle"><i class="ph ph-book-open"></i></button>
+    <div id="sidebar-content">
+      <h2>Reference Guide</h2>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-person-arms-spread"></i>Autonomic Modes</h3>
+        <p class="sidebar-intro">The system infers autonomic state from HRV patterns. These are not diagnoses — just textures of how the nervous system is moving.</p>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="heightened"></span>
+          <div>
+            <strong>Heightened Alertness</strong>
+            <p>Active, alert state. Sympathetic activation — the system is mobilized and outward-facing.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="subtle"></span>
+          <div>
+            <strong>Subtle Alertness</strong>
+            <p>Attending, watchful. A gentler alertness — present but not mobilized.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="transitional"></span>
+          <div>
+            <strong>Transitional</strong>
+            <p>Moving between states. The system is reorganizing, neither here nor there.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="settling"></span>
+          <div>
+            <strong>Settling</strong>
+            <p>Easing down. Parasympathetic influence increasing — the system is beginning to rest.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="emerging"></span>
+          <div>
+            <strong>Emerging Coherence</strong>
+            <p>Gathering into pattern. Breath and heart beginning to entrain — coherence is forming.</p>
+          </div>
+        </div>
+
+        <div class="mode-item">
+          <span class="swatch" data-mode="coherent"></span>
+          <div>
+            <strong>Coherent Presence</strong>
+            <p>Dwelling in pattern. Breath-heart coupling established — the system is in a stable, integrated state.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-path"></i>Phase Labels</h3>
+        <p class="sidebar-intro">Phases describe the trajectory — where the system is in its journey through autonomic space.</p>
+
+        <div class="phase-item">
+          <strong>Inflection</strong>
+          <p>A turning point. The system is changing direction — either entering or leaving a pattern.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Dwelling</strong>
+          <p>Staying in place. The system has found a region and is resting there.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Flowing</strong>
+          <p>Moving with momentum. The system is in motion but with consistent direction.</p>
+        </div>
+
+        <div class="phase-item">
+          <strong>Seeking</strong>
+          <p>Exploring. The system is moving without a clear attractor — searching for a new basin.</p>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3><i class="ph ph-info"></i>About This View</h3>
+        <p>This visualization shows how your autonomic nervous system moved through a session. It is not a performance score or diagnostic tool.</p>
+        <p>The goal is <em>recognition</em> — "yes, that was me moving" — not evaluation.</p>
+        <p>Your felt sense of the session has equal weight to what the sensors measured. Both are partial views of the same becoming.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       MAIN VIZ AREA
+       ================================================================ -->
+  <h1>PHENOMENOLOGICAL REPLAY</h1>
+
+  <div id="tabs">
+    <div class="tab active" data-view="2d">2D Temporal</div>
+    <div class="tab" data-view="3d">3D Topology</div>
+  </div>
+
+  <div id="file-input-container">
+    <label id="file-label" for="file-input">Load Session (.jsonl)</label>
+    <input type="file" id="file-input" accept=".jsonl">
+    <select id="session-list" style="font-size:11px;background:#1a1a24;border:1px solid #333;color:#888;border-radius:4px;padding:5px 8px">
+      <option disabled selected>Stored sessions</option>
+    </select>
+    <button id="btn-load-session" class="hidden" style="font-size:11px">Load</button>
+  </div>
+
+  <div id="canvas-wrapper">
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+      <button id="info-toggle" class="info-toggle" aria-expanded="false"><i class="ph ph-info"></i></button>
+      <div id="info-content" class="info-content hidden">
+        <div class="info-title">Reading the trace</div>
+        <div class="info-item"><i class="ph ph-heart"></i><span><strong>Heart size</strong> — HRV amplitude (variability range)</span></div>
+        <div class="info-item"><i class="ph ph-heartbeat"></i><span><strong>Pulse rate</strong> — Current heart rate</span></div>
+        <div class="info-item"><i class="ph ph-wave-sine"></i><span><strong>Trail color</strong> — Autonomic mode</span></div>
+        <div class="info-item"><i class="ph ph-arrows-horizontal"></i><span><strong>Horizontal</strong> — Trajectory coherence</span></div>
+        <div class="info-item"><i class="ph ph-arrows-vertical"></i><span><strong>Vertical</strong> — Breath rhythm position</span></div>
+      </div>
+    </div>
+    <div id="legend" class="hidden">
+      <div class="legend-title">MODE</div>
+      <div class="legend-item"><span class="swatch" data-mode="heightened"></span>heightened</div>
+      <div class="legend-item"><span class="swatch" data-mode="subtle"></span>subtle alertness</div>
+      <div class="legend-item"><span class="swatch" data-mode="transitional"></span>transitional</div>
+      <div class="legend-item"><span class="swatch" data-mode="settling"></span>settling</div>
+      <div class="legend-item"><span class="swatch" data-mode="emerging"></span>emerging</div>
+      <div class="legend-item"><span class="swatch" data-mode="coherent"></span>coherent</div>
+    </div>
+  </div>
+
+  <div id="view-hint"></div>
+
+  <div id="controls">
+    <button id="play-btn"><i class="ph ph-play"></i></button>
+    <span id="speed-controls" class="revealable hidden">
+      <button id="speed-05">0.5x</button>
+      <button id="speed-1" class="active">1x</button>
+      <button id="speed-2">2x</button>
+      <button id="speed-4">4x</button>
+    </span>
+    <button id="details-toggle" class="toggle-btn">Show details</button>
+  </div>
+
+  <div id="timeline-container" class="revealable hidden">
+    <input type="range" id="timeline" min="0" max="100" value="0">
+    <div id="time-display">
+      <span id="time-current">00:00</span>
+      <span id="time-total">00:00</span>
+    </div>
+  </div>
+
+  <div id="phase-label" class="revealable hidden">— waiting for session —</div>
+
+  <div id="metrics-panel" class="revealable hidden">
+    <div class="metric">
+      <div class="metric-label"><i class="ph ph-heartbeat"></i>Heart Rate</div>
+      <div class="metric-value" id="m-hr">—</div>
+      <div class="metric-sub">bpm</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label"><i class="ph ph-wave-sine"></i>Coherence</div>
+      <div class="metric-value" id="m-coh">—</div>
+      <div class="metric-sub" id="m-coh-label">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label"><i class="ph ph-wind"></i>Breath</div>
+      <div class="metric-value" id="m-breath">—</div>
+      <div class="metric-sub">cycles/min</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label"><i class="ph ph-circle-dashed"></i>Stability</div>
+      <div class="metric-value" id="m-stability">—</div>
+      <div class="metric-sub" id="m-mode">—</div>
+    </div>
+  </div>
+
+  <div id="metrics-info" class="revealable hidden">
+    <button id="metrics-info-toggle"><i class="ph ph-question"></i>What do these mean?</button>
+    <div id="metrics-info-content" class="hidden">
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-heartbeat"></i>Heart Rate</strong>
+        <p>Beats per minute. Varies naturally with breath, activity, and autonomic state.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-wave-sine"></i>Coherence</strong>
+        <p>Trajectory integrity over time — how consistently the system maintains its pattern. Not "good" or "bad," just a measure of stability in the journey.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-wind"></i>Breath</strong>
+        <p>Estimated breathing rate derived from heart rate variability patterns. The heart speeds up on inhale, slows on exhale.</p>
+      </div>
+      <div class="metrics-info-item">
+        <strong><i class="ph ph-circle-dashed"></i>Stability</strong>
+        <p>How settled the system is in its current region of phase space. Higher stability suggests dwelling; lower suggests movement or transition.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       LOG PANEL
+       ================================================================ -->
+  <div id="log-panel">
+    <button id="log-toggle">LOG</button>
+    <div id="log"></div>
+  </div>
+
+  <!-- ================================================================
+       SCAN PANEL WIRING (inline, runs before module)
+       ================================================================ -->
+  <script>
+    // Scan panel open/close — must be inline (before module loads)
+    document.addEventListener('DOMContentLoaded', () => {
+      const openBtn = document.getElementById('btn-open-scan');
+      const backdrop = document.getElementById('scan-panel-backdrop');
+      const panel = document.getElementById('scan-panel');
+      const cancelBtn = document.getElementById('btn-cancel-scan');
+
+      function openScan() {
+        backdrop.classList.remove('hidden');
+        panel.classList.remove('hidden');
+      }
+      function closeScan() {
+        backdrop.classList.add('hidden');
+        panel.classList.add('hidden');
+      }
+
+      openBtn.addEventListener('click', openScan);
+      cancelBtn.addEventListener('click', closeScan);
+      backdrop.addEventListener('click', closeScan);
+
+      // Close scan panel when connection succeeds
+      document.getElementById('btn-connect').addEventListener('click', () => {
+        // Small delay to let connection happen
+        setTimeout(() => {
+          if (!panel.classList.contains('hidden')) {
+            closeScan();
+          }
+        }, 500);
+      });
+
+      // Log panel toggle
+      const logPanel = document.getElementById('log-panel');
+      const logToggle = document.getElementById('log-toggle');
+      logPanel.classList.add('collapsed');
+      logToggle.addEventListener('click', () => {
+        logPanel.classList.toggle('collapsed');
+      });
+    });
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
