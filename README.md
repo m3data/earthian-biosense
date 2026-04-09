@@ -4,9 +4,9 @@
 ![Version](https://img.shields.io/badge/VERSION-0.3.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
 
-Biosignal acquisition and analysis for the Earthian Ecological Coherence Protocol (EECP). Part of a research programme investigating how adaptive capacity can be sensed, supported, and stewarded through somatic and computational signals.
+Biosignal acquisition and analysis for research into adaptive capacity — how it can be sensed, supported, and stewarded through somatic and computational signals.
 
-Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space. Designed as the somatic sensing layer in a cross-substrate coupling architecture where biosignal and semantic streams are analysed together.
+Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space rather than reducing it to single numbers.
 
 ## What It Does
 
@@ -176,25 +176,9 @@ Each processed record contains:
 }
 ```
 
-## EECP Context
+## Research
 
-The Earthian Ecological Coherence Protocol (EECP) is a research architecture for detecting coherence across multiple sensing modalities. EarthianBioSense is one of three clients in the ecosystem:
-
-```
-┌─────────────────┬─────────────────┬─────────────────┐
-│ EarthianBioSense│ Semantic Climate│ EECP Field      │
-│ (this repo)     │ Client          │ Journal         │
-├─────────────────┼─────────────────┼─────────────────┤
-│ Biosignal       │ Semiotic        │ Phenomenological│
-│ Stream          │ Stream          │ Stream          │
-└─────────────────┴─────────────────┴─────────────────┘
-                          ↓
-            Ecological Coherence Detection
-```
-
-Coherence emerges when computational (Semantic Climate) and somatic (EBS) signatures shift together.
-
-**Research paper:** Mytka, M. (2026). *Dual-Substrate Coupling: Sensing Coherence Across Somatic and Semantic Streams in Human-AI Interaction*. SSRN. [https://dx.doi.org/10.2139/ssrn.6439347](https://dx.doi.org/10.2139/ssrn.6439347)
+**Preprint:** Mytka, M. (2026). *Dual-Substrate Coupling: Sensing Coherence Across Somatic and Semantic Streams in Human-AI Interaction*. SSRN. [https://dx.doi.org/10.2139/ssrn.6439347](https://dx.doi.org/10.2139/ssrn.6439347)
 
 ## Architecture
 
