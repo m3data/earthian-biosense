@@ -194,6 +194,8 @@ The Earthian Ecological Coherence Protocol (EECP) is a research architecture for
 
 Coherence emerges when computational (Semantic Climate) and somatic (EBS) signatures shift together.
 
+**Research paper:** Mytka, M. (2026). *Dual-Substrate Coupling: Sensing Coherence Across Somatic and Semantic Streams in Human-AI Interaction*. SSRN. [https://dx.doi.org/10.2139/ssrn.6439347](https://dx.doi.org/10.2139/ssrn.6439347)
+
 ## Architecture
 
 ```
