@@ -178,7 +178,7 @@ Each processed record contains:
 
 ## Research
 
-**Preprint:** Mytka, M. (2026). *Dual-Substrate Coupling: Sensing Coherence Across Somatic and Semantic Streams in Human-AI Interaction*. SSRN. [https://dx.doi.org/10.2139/ssrn.6439347](https://dx.doi.org/10.2139/ssrn.6439347)
+**Preprint:** Mytka, M. (2026). *Jointly Tracing Coupling Mode Transitions in Human-AI Interaction: Semantic and Somatic Signals*. SSRN. [https://dx.doi.org/10.2139/ssrn.6439347](https://dx.doi.org/10.2139/ssrn.6439347)
 
 ## Architecture
 
