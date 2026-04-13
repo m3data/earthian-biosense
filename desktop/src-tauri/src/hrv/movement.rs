@@ -142,7 +142,12 @@ impl ModeHistory {
                 self.previous_mode = Some(current.clone());
                 self.mode_entry_time = timestamp;
                 self.transition_count += 1;
-                self.state_status = "unknown".to_string();
+                // Do NOT reset state_status here: detect_mode_with_hysteresis
+                // is the single source of truth for the promotion state machine
+                // (unknown -> provisional -> established). Resetting here would
+                // clobber the "provisional" that detect_mode_with_hysteresis
+                // just set for this same transition, leaving mode_status pinned
+                // to "unknown" whenever Case A (same-mode) has no recovery path.
             }
         } else {
             self.mode_entry_time = timestamp;
@@ -783,6 +788,64 @@ mod tests {
         h.clear();
         assert!(h.get_current_mode().is_none());
         assert_eq!(h.get_transition_count(), 0);
+    }
+
+    #[test]
+    fn test_state_status_promotes_and_survives_transitions() {
+        // Regression: ModeHistory::append used to reset state_status="unknown"
+        // on any mode transition, clobbering the "provisional" that
+        // detect_mode_with_hysteresis had just set for the new mode. Combined
+        // with Case A (same-mode) having no recovery path, this left
+        // mode_status pinned to "unknown" for entire sessions.
+        let mut history = ModeHistory::new(100);
+
+        // Tick 0: cold start. Strong settling signal should enter provisional.
+        let inf_a = compute_soft_mode_membership(0.75, true, 0.7, 0.05, 0.2, None);
+        let (mode_a, conf_a, meta_a) = detect_mode_with_hysteresis(&inf_a, &mut history, 0.0);
+        history.append(&mode_a, conf_a, 0.0);
+        assert_eq!(
+            meta_a.get("state_status").map(String::as_str),
+            Some("provisional"),
+            "Tick 0 should promote to provisional on strong signal"
+        );
+        assert_eq!(
+            history.get_state_status(),
+            "provisional",
+            "append() must not reset state_status after a fresh entry"
+        );
+
+        // Ticks 1..4: same signal. Should progress provisional -> established.
+        for t in 1..5 {
+            let inf = compute_soft_mode_membership(0.75, true, 0.7, 0.05, 0.2, None);
+            let (mode, conf, _meta) =
+                detect_mode_with_hysteresis(&inf, &mut history, t as f64);
+            history.append(&mode, conf, t as f64);
+        }
+        assert_eq!(
+            history.get_state_status(),
+            "established",
+            "Sustained same-mode signal should promote to established"
+        );
+
+        // Tick 5: alert signal strong enough to cross exit_threshold.
+        // Transition should set provisional (NOT leave it unknown).
+        let inf_b =
+            compute_soft_mode_membership(0.05, false, 0.15, 0.4, 0.2, None);
+        let (mode_b, conf_b, meta_b) =
+            detect_mode_with_hysteresis(&inf_b, &mut history, 5.0);
+        history.append(&mode_b, conf_b, 5.0);
+        assert_ne!(mode_b, mode_a, "Mode should transition on strong opposite signal");
+        assert_eq!(
+            meta_b.get("state_status").map(String::as_str),
+            Some("provisional"),
+            "Mode transition meta must report provisional"
+        );
+        assert_eq!(
+            history.get_state_status(),
+            "provisional",
+            "append() must NOT clobber state_status after a mode transition \
+             (this is the regression that pinned mode_status to 'unknown')"
+        );
     }
 
     #[test]
