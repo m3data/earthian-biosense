@@ -16,7 +16,7 @@ use session::{SessionFileInfo, SessionLogger, SessionSummary};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use tokio::sync::{mpsc, Mutex};
 
 /// RR interval buffer size (matching Python RR_WINDOW_SIZE)
@@ -232,6 +232,22 @@ async fn cmd_connect(
                         "rr": hr_data.rr_intervals,
                         "sensor_contact": hr_data.sensor_contact,
                     })).ok();
+
+                    // Persist sample to JSONL if a session is recording
+                    {
+                        let state = handle.state::<AppState>();
+                        let mut logger = state.session_logger.lock().await;
+                        if logger.is_active() {
+                            logger.log(
+                                &ts,
+                                hr_data.heart_rate,
+                                &hr_data.rr_intervals,
+                                &metrics,
+                                &dynamics,
+                                coherence,
+                            );
+                        }
+                    }
 
                     _tick_count += 1;
                 }
