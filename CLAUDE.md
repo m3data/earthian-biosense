@@ -5,15 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** RAA-EBS-001 remediation — P0/P1 complete, P2 in progress
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-02-24_raa-ebs-001-p1-remediation.md`
-**Previous:** RAA-EBS-001 recursive adversarial audit (2026-02-24)
-**Key Result:** P0 fixes (autocorrelation normalization, softmax temperature), P1 fixes (mode label vocabulary, history_signature saturation, centroid reachability). 91 tests, all green.
+**Phase:** RAA-EBS-001 remediation complete — v0.2.1 released
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-02-24_raa-ebs-001-p2-remediation-and-release.md`
+**Previous:** P0/P1 remediation (2026-02-24)
+**Key Result:** All 17 RAA-EBS-001 convergence report items resolved. P0 (autocorrelation, softmax temperature), P1 (mode labels, history_signature saturation, centroid reachability, P1-A documented), P2 (docs false claim, naming, dead parameter, storage isolation, iOS HRV guard, iOS tests). 91 Python tests green. Tagged and released as v0.2.1.
 **Audit Report:** `audits/RAA-EBS-001/CONVERGENCE-REPORT.md`
+**GitHub Release:** https://github.com/m3data/earthian-biosense/releases/tag/v0.2.1
 **Next Steps:**
-- P2 remediation (minimum session guard, dead parameter cleanup, naming, docs)
-- P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema changes)
-- P3 items (documentation alignment, test coverage)
+- P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema migration — `sum_squared_successive_diffs`, `successive_diff_count` in `SessionSummary`)
+- P2-D follow-up: add Xcode test target (`EBSCaptureTests`) to run `HRVProcessorTests.swift`
+- P3 queue: vocabulary alignment (P3-A), dead code (P3-B), singleton (P3-C), chimera disposition (P3-D), lag range extension (P3-E)
+- Empirical calibration: first real sessions under corrected parameters (T=0.2, renamed modes)
 
 ---
 ## Active Conceptual Context

@@ -5,15 +5,43 @@
 //! so downstream tools (viz, replay, analysis) work unchanged.
 
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use chrono::Local;
 
 use crate::hrv::HRVMetrics;
 use crate::hrv::phase::PhaseDynamics;
+
+/// Read `~/.ebs-bridge/current-session.json` and return `claude_session_id`
+/// iff the file exists, parses, and is less than 5 minutes old.
+///
+/// See `Earthian-BioSense/specs/SPEC-010-vibe-harness-bridge.md`.
+fn read_bridge_claude_session_id() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
+    let path = PathBuf::from(home).join(".ebs-bridge").join("current-session.json");
+
+    let meta = fs::metadata(&path).ok()?;
+    let modified = meta.modified().ok()?;
+    let age = SystemTime::now().duration_since(modified).ok()?;
+    if age.as_secs() > 300 {
+        return None;
+    }
+
+    let contents = fs::read_to_string(&path).ok()?;
+    let value: Value = serde_json::from_str(&contents).ok()?;
+    if !value.get("enabled").and_then(Value::as_bool).unwrap_or(false) {
+        return None;
+    }
+    value
+        .get("claude_session_id")
+        .and_then(Value::as_str)
+        .map(String::from)
+        .filter(|s| !s.is_empty())
+}
 
 // ---------------------------------------------------------------------------
 // Data structures
@@ -81,7 +109,7 @@ impl SessionLogger {
 
     pub fn start_session(&mut self, session_type: &str) -> Result<PathBuf, String> {
         let now = Local::now();
-        let ts = now.format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
+        let ts = now.format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
         let filename = now.format("%Y-%m-%d_%H%M%S.jsonl").to_string();
         let path = self.session_dir.join(&filename);
 
@@ -89,13 +117,16 @@ impl SessionLogger {
             .map_err(|e| format!("Failed to create session file: {e}"))?;
         let mut writer = BufWriter::new(file);
 
-        let header = json!({
+        let mut header = json!({
             "type": "session_start",
             "ts": ts,
-            "schema_version": "1.1.0",
+            "schema_version": "1.2.0",
             "session_type": session_type,
             "note": "ent=entrainment (breath-heart sync), coherence=trajectory integrity"
         });
+        if let Some(cid) = read_bridge_claude_session_id() {
+            header["claude_session_id"] = json!(cid);
+        }
 
         writeln!(writer, "{}", serde_json::to_string(&header).unwrap())
             .map_err(|e| format!("Failed to write header: {e}"))?;
@@ -191,7 +222,7 @@ impl SessionLogger {
             None => return,
         };
 
-        let ts = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
+        let ts = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
         let record = json!({
             "type": "field_event",
             "ts": ts,
@@ -209,11 +240,11 @@ impl SessionLogger {
         // Calculate duration
         let duration_secs = match &self.started_at {
             Some(start_ts) => {
-                let now = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
+                let now = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
                 // Parse start and compute difference
-                match chrono::NaiveDateTime::parse_from_str(start_ts, "%Y-%m-%dT%H:%M:%S%.3f") {
+                match chrono::DateTime::parse_from_str(start_ts, "%Y-%m-%dT%H:%M:%S%.3f%:z") {
                     Ok(start) => {
-                        match chrono::NaiveDateTime::parse_from_str(&now, "%Y-%m-%dT%H:%M:%S%.3f") {
+                        match chrono::DateTime::parse_from_str(&now, "%Y-%m-%dT%H:%M:%S%.3f%:z") {
                             Ok(end) => (end - start).num_milliseconds() as f64 / 1000.0,
                             Err(_) => 0.0,
                         }
