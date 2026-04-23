@@ -264,10 +264,15 @@ def report(ebs_path: Path, mh_path: Path):
             hr_vals = [s["hr"] for s in window if "hr" in s]
             print(f"  {t.strftime('%H:%M:%S')}  {ev['from_mode']} → {ev['to_mode']}"
                   f"  (friction={ev.get('friction', '?')})")
+            parts = []
             if hr_vals:
-                print(f"    ±10s: hr n={len(hr_vals)} mean={statistics.mean(hr_vals):.1f}, "
-                      f"ent mean={statistics.mean(ent_vals):.3f} (n={len(ent_vals)}), "
-                      f"coh mean={statistics.mean(coh_vals):.3f} (n={len(coh_vals)})")
+                parts.append(f"hr n={len(hr_vals)} mean={statistics.mean(hr_vals):.1f}")
+            if ent_vals:
+                parts.append(f"ent mean={statistics.mean(ent_vals):.3f} (n={len(ent_vals)})")
+            if coh_vals:
+                parts.append(f"coh mean={statistics.mean(coh_vals):.3f} (n={len(coh_vals)})")
+            if parts:
+                print(f"    ±10s: {', '.join(parts)}")
 
 
 def main():
