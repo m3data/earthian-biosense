@@ -5,17 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** Accelerometer / motion channel implemented (SPEC-013) — v0.4.0, live validation pending
+**Phase:** Accelerometer / motion channel (SPEC-013) — v0.4.0, live-validated 2026-05-20, ready to tag/release
 **Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-05-20_accelerometer-motion-channel.md`
 **Previous:** RAA-EBS-001 remediation complete — v0.2.1 (2026-02-24)
 **Key Result:** First non-cardiac signal dimension. Polar PMD accelerometer decoded (uncompressed 16-bit XYZ, format confirmed against real device capture in `tests/fixtures/pmd_acc/`) and a motion channel derived (gravity-removal → RMS magnitude → debounced still/moving gate → range-egress warning). Implemented in both engines: Python (`src/ble/parser.py`, `src/processing/motion.py`) and Rust (`desktop/src-tauri/src/ble/parser.rs`, `src/motion/`, PMD wiring in `ble/mod.rs`, folded into `lib.rs` phase event + JSONL). Schema 1.3.0 (`motion` object + `phase.motion_confounded`, optional/back-compatible). Tests: Python 112, Rust 50.
 **Spec:** `specs/SPEC-013-accelerometer-motion-channel.md`
-**GitHub Release:** v0.4.0 not yet tagged — pending live on-device validation
+**GitHub Release:** v0.4.0 ready to tag (live-validated). Stray `v0.4.2` tag (SC's version, mis-tagged here) deleted local+remote 2026-05-20.
 **Next Steps:**
-- LIVE VALIDATION (acceptance #3–6): paired session with strap — confirm `motion.state` reads still→moving across a real kettlebell segment, `phase.motion_confounded` flips, and `ebs:range_egress_warning` fires before BLE dropout
-- Calibrate `MOTION_THRESHOLD_MG` (currently provisional 60mg) on labelled-activity sessions
-- Tag/release v0.4.0 after validation; resolve stray `v0.4.2` tag (duplicate of v0.2.2 commit)
+- Tag v0.4.0 + cut GitHub release
+- Calibrate `MOTION_THRESHOLD_MG` (currently provisional 60mg) on labelled-activity sessions; current 50Hz capture aggregates 36–72 samples/tick
 - v0.2 follow-on: re-weight (not just annotate) the classifier on motion-confounded samples
+- Frontend: surface motion state + egress warning in the desktop UI (currently logged/emitted, not displayed)
 - P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema migration)
 
 ---

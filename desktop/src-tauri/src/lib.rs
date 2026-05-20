@@ -272,6 +272,16 @@ async fn cmd_connect(
                                 coherence,
                                 &motion_state,
                             );
+                            if motion_state.range_egress_warning {
+                                logger.log_field_event(
+                                    "range_egress_warning",
+                                    &format!(
+                                        "motion_mag={:.1} sustained_ticks={}",
+                                        motion_state.motion_mag,
+                                        motion_state.sustained_moving_ticks
+                                    ),
+                                );
+                            }
                         }
                     }
 

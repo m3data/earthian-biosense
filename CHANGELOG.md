@@ -21,7 +21,7 @@ motion channel to disambiguate the two.
 
 Tests: Python 112 passed, Rust 50 passed (both decoders verified; Python against real device bytes).
 
-**Status:** implementation complete and unit-tested on both engines. Live on-device validation (still/moving during real activity; egress firing before dropout) pending a paired session with the strap.
+**Live-validated** 2026-05-20 (`desktop/sessions/2026-05-20_182805.jsonl`): a desk → handpan → desk session produced schema-1.3.0 records with motion on every tick, `state` tracking still/moving across the real movement, `motion_confounded` flipping accordingly, and `range_egress_warning` firing on both sustained-movement episodes (and correctly not on a 2-tick blip).
 
 ### Maintenance
 - Aligned desktop app version (Cargo + Tauri config) to the project version (was 0.1.0).
