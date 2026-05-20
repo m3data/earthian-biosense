@@ -1,7 +1,7 @@
 # EarthianBioSense
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.3.2-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.4.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
 
 Biosignal acquisition and analysis for research into adaptive capacity — how it can be sensed, supported, and stewarded through somatic and computational signals.
@@ -16,11 +16,12 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 - **Phase space trajectory**: tracks movement through a 3D manifold (entrainment, breath, amplitude)
 - **Dynamics computation**: velocity, curvature, stability — not just where you are, but how you're moving
 - **Mode classification**: 6-mode system from heightened alertness to settled presence
+- **Motion channel** (accelerometer): gravity-removed motion magnitude with a still/moving gate, so movement-confounded readings are flagged rather than mistaken for arousal — and sustained motion warns of imminent BLE dropout
 - **JSONL export**: full trajectory data for post-session analysis
 
 ## Capture Methods
 
-### macOS Desktop App — v0.1.0
+### macOS Desktop App — v0.4.0
 
 Native macOS app built with Tauri v2 (Rust + webview). Designed for long-duration background data collection — start a session, hide the window, come back hours later.
 
@@ -29,9 +30,10 @@ Location: `desktop/`
 **Features:**
 - **11MB native app**, ~0.4% CPU idle
 - BLE connection to Polar H10 via btleplug (CoreBluetooth)
-- Full HRV processing in Rust (32 unit tests) — port of the Python pipeline
+- Full HRV processing in Rust (50 unit tests) — port of the Python pipeline
+- **Accelerometer / motion channel** via the Polar PMD service (still/moving gate, motion-confound flag, range-egress warning)
 - Live phase space visualisation in the webview
-- Session recording to JSONL (schema 1.1.0, compatible with all other tools)
+- Session recording to JSONL (schema 1.3.0, compatible with all other tools)
 - Session replay from the same app
 
 **Install:** Download the DMG from [GitHub Releases](https://github.com/m3data/earthian-biosense/releases), or build from source:
@@ -130,7 +132,7 @@ Six modes emerge from position in feature space (entrainment, breath steadiness,
 
 Modes use soft classification — you're never fully "in" one mode, but have membership across all six.
 
-## Output Format (Schema 1.1.0)
+## Output Format (Schema 1.3.0)
 
 Each processed record contains:
 
@@ -159,6 +161,7 @@ Each processed record contains:
     "coherence": 0.55,
     "movement_annotation": "settled",
     "movement_aware_label": "settling",
+    "motion_confounded": false,
     "soft_mode": {
       "primary": "settling",
       "secondary": "rhythmic settling",
@@ -172,9 +175,17 @@ Each processed record contains:
         "settled presence": 0.05
       }
     }
+  },
+  "motion": {
+    "mag": 4.2,
+    "state": "still",
+    "confounded": false,
+    "n_samples": 50
   }
 }
 ```
+
+The `motion` block and `phase.motion_confounded` are present only on sessions captured with the accelerometer enabled (schema 1.3.0+); earlier sessions omit them and remain valid.
 
 ## Research
 
@@ -187,17 +198,18 @@ Each processed record contains:
 │                         Capture Layer                                │
 ├──────────────────────┬───────────────────────┬───────────────────────┤
 │  macOS Desktop App   │  iOS App (EBSCapture) │  Python Terminal App  │
-│  v0.1.0 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
+│  v0.4.0 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
 │  - Long-duration     │  - Mobile capture      │  - Desktop capture   │
 │  - Background BLE    │  - On-device HRV       │  - WebSocket stream  │
 │  - Rust HRV pipeline │  - Real-time feedback  │  - ASCII viz         │
-│  - Live phase viz    │  - Profile analytics   │                      │
-│  - Session replay    │  - Session insights    │                      │
+│  - Motion channel    │  - Profile analytics   │                      │
+│  - Live phase viz    │  - Session insights    │                      │
+│  - Session replay    │                        │                      │
 └──────────┬───────────┴───────────┬───────────┴───────────┬───────────┘
            │                       │                       │
            ▼                       ▼                       ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                    JSONL Sessions (schema 1.1.0)                     │
+│                    JSONL Sessions (schema 1.3.0)                     │
 │   All three apps write the same format — sessions are portable       │
 └──────────────────────────────────────────────────────────────────────┘
 ```

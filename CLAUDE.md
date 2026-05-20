@@ -5,17 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** RAA-EBS-001 remediation complete — v0.2.1 released
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-02-24_raa-ebs-001-p2-remediation-and-release.md`
-**Previous:** P0/P1 remediation (2026-02-24)
-**Key Result:** All 17 RAA-EBS-001 convergence report items resolved. P0 (autocorrelation, softmax temperature), P1 (mode labels, history_signature saturation, centroid reachability, P1-A documented), P2 (docs false claim, naming, dead parameter, storage isolation, iOS HRV guard, iOS tests). 91 Python tests green. Tagged and released as v0.2.1.
-**Audit Report:** `audits/RAA-EBS-001/CONVERGENCE-REPORT.md`
-**GitHub Release:** https://github.com/m3data/earthian-biosense/releases/tag/v0.2.1
+**Phase:** Accelerometer / motion channel implemented (SPEC-013) — v0.4.0, live validation pending
+**Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-05-20_accelerometer-motion-channel.md`
+**Previous:** RAA-EBS-001 remediation complete — v0.2.1 (2026-02-24)
+**Key Result:** First non-cardiac signal dimension. Polar PMD accelerometer decoded (uncompressed 16-bit XYZ, format confirmed against real device capture in `tests/fixtures/pmd_acc/`) and a motion channel derived (gravity-removal → RMS magnitude → debounced still/moving gate → range-egress warning). Implemented in both engines: Python (`src/ble/parser.py`, `src/processing/motion.py`) and Rust (`desktop/src-tauri/src/ble/parser.rs`, `src/motion/`, PMD wiring in `ble/mod.rs`, folded into `lib.rs` phase event + JSONL). Schema 1.3.0 (`motion` object + `phase.motion_confounded`, optional/back-compatible). Tests: Python 112, Rust 50.
+**Spec:** `specs/SPEC-013-accelerometer-motion-channel.md`
+**GitHub Release:** v0.4.0 not yet tagged — pending live on-device validation
 **Next Steps:**
-- P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema migration — `sum_squared_successive_diffs`, `successive_diff_count` in `SessionSummary`)
-- P2-D follow-up: add Xcode test target (`EBSCaptureTests`) to run `HRVProcessorTests.swift`
-- P3 queue: vocabulary alignment (P3-A), dead code (P3-B), singleton (P3-C), chimera disposition (P3-D), lag range extension (P3-E)
-- Empirical calibration: first real sessions under corrected parameters (T=0.2, renamed modes)
+- LIVE VALIDATION (acceptance #3–6): paired session with strap — confirm `motion.state` reads still→moving across a real kettlebell segment, `phase.motion_confounded` flips, and `ebs:range_egress_warning` fires before BLE dropout
+- Calibrate `MOTION_THRESHOLD_MG` (currently provisional 60mg) on labelled-activity sessions
+- Tag/release v0.4.0 after validation; resolve stray `v0.4.2` tag (duplicate of v0.2.2 commit)
+- v0.2 follow-on: re-weight (not just annotate) the classifier on motion-confounded samples
+- P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema migration)
 
 ---
 ## Active Conceptual Context

@@ -1,6 +1,6 @@
 {
-  "title": "EarthianBioSense (v0.2.1)",
-  "description": "Biosignal acquisition and analysis for ecological coherence research. Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space with mode classification and entrainment detection.",
+  "title": "EarthianBioSense (v0.4.0)",
+  "description": "Biosignal acquisition and analysis for ecological coherence research. Captures heart rate variability from Polar H10 monitors, computes HRV metrics, and tracks autonomic state as a trajectory through phase space with mode classification and entrainment detection. Adds an accelerometer-derived motion channel (Polar PMD) that flags movement-confounded readings and warns of imminent BLE range loss.",
   "upload_type": "software",
   "creators": [
     {

@@ -92,6 +92,69 @@ pub fn parse_heart_rate_measurement(data: &[u8]) -> Option<HeartRateData> {
     })
 }
 
+// ===========================================================================
+// PMD Accelerometer (SPEC-013) — port of src/ble/parser.py
+// ===========================================================================
+
+/// PMD measurement type for accelerometer.
+pub const PMD_TYPE_ACC: u8 = 0x02;
+/// Uncompressed 16-bit ACC frame type (observed on H10 at 16-bit; see SPEC-013).
+pub const PMD_ACC_FRAME_TYPE_UNCOMPRESSED: u8 = 0x01;
+
+const PMD_ACC_HEADER_LEN: usize = 10; // type(1) + ts(8) + frame_type(1)
+const ACC_SAMPLE_LEN: usize = 6; // int16 LE x, y, z
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct AccSample {
+    pub x: i16,
+    pub y: i16,
+    pub z: i16,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AccFrame {
+    pub timestamp_ns: u64,
+    pub samples: Vec<AccSample>,
+}
+
+/// Decode a PMD accelerometer Data-characteristic frame.
+///
+/// Layout (50Hz / 16-bit / +-4g, confirmed empirically — see SPEC-013):
+/// `type(0x02) | ts(8, LE ns) | frame_type(0x01) | int16-LE XYZ triples (mg)`.
+///
+/// Returns None on malformed or unsupported frames (wrong measurement type,
+/// compressed/unknown frame type, misaligned payload) rather than misdecoding.
+pub fn parse_pmd_acc_frame(data: &[u8]) -> Option<AccFrame> {
+    if data.len() < PMD_ACC_HEADER_LEN {
+        return None;
+    }
+    if data[0] != PMD_TYPE_ACC {
+        return None;
+    }
+    let timestamp_ns = u64::from_le_bytes([
+        data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+    ]);
+    if data[9] != PMD_ACC_FRAME_TYPE_UNCOMPRESSED {
+        return None;
+    }
+    let payload = &data[PMD_ACC_HEADER_LEN..];
+    if payload.len() % ACC_SAMPLE_LEN != 0 {
+        return None;
+    }
+    let samples = payload
+        .chunks_exact(ACC_SAMPLE_LEN)
+        .map(|c| AccSample {
+            x: i16::from_le_bytes([c[0], c[1]]),
+            y: i16::from_le_bytes([c[2], c[3]]),
+            z: i16::from_le_bytes([c[4], c[5]]),
+        })
+        .collect();
+    Some(AccFrame {
+        timestamp_ns,
+        samples,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,5 +219,78 @@ mod tests {
         assert_eq!(result.energy_expended, Some(150));
         assert_eq!(result.rr_intervals.len(), 1);
         assert_eq!(result.rr_intervals[0], 1000);
+    }
+
+    // --- PMD ACC frame decoding (SPEC-013) ---------------------------------
+
+    fn build_acc_frame(samples: &[(i16, i16, i16)], frame_type: u8, mtype: u8) -> Vec<u8> {
+        let mut frame = vec![mtype];
+        frame.extend_from_slice(&12345u64.to_le_bytes());
+        frame.push(frame_type);
+        for (x, y, z) in samples {
+            frame.extend_from_slice(&x.to_le_bytes());
+            frame.extend_from_slice(&y.to_le_bytes());
+            frame.extend_from_slice(&z.to_le_bytes());
+        }
+        frame
+    }
+
+    #[test]
+    fn test_acc_single_sample() {
+        let frame = build_acc_frame(&[(-958, 146, 289)], 0x01, 0x02);
+        let result = parse_pmd_acc_frame(&frame).unwrap();
+        assert_eq!(result.timestamp_ns, 12345);
+        assert_eq!(result.samples, vec![AccSample { x: -958, y: 146, z: 289 }]);
+    }
+
+    #[test]
+    fn test_acc_multi_sample_order_and_signs() {
+        let triples = [(1i16, 2i16, 3i16), (-4, -5, -6), (1000, -1000, 0)];
+        let frame = build_acc_frame(&triples, 0x01, 0x02);
+        let result = parse_pmd_acc_frame(&frame).unwrap();
+        let got: Vec<(i16, i16, i16)> =
+            result.samples.iter().map(|s| (s.x, s.y, s.z)).collect();
+        assert_eq!(got, triples.to_vec());
+    }
+
+    #[test]
+    fn test_acc_50hz_frame_has_36_samples() {
+        let triples: Vec<(i16, i16, i16)> =
+            (0..36).map(|i| (i, -i, i * 2)).collect();
+        let frame = build_acc_frame(&triples, 0x01, 0x02);
+        assert_eq!(frame.len(), 226); // 10 header + 216 payload
+        let result = parse_pmd_acc_frame(&frame).unwrap();
+        assert_eq!(result.samples.len(), 36);
+    }
+
+    #[test]
+    fn test_acc_rejects_wrong_measurement_type() {
+        let frame = build_acc_frame(&[(1, 2, 3)], 0x01, 0x00); // ECG type
+        assert!(parse_pmd_acc_frame(&frame).is_none());
+    }
+
+    #[test]
+    fn test_acc_rejects_unsupported_frame_type() {
+        let frame = build_acc_frame(&[(1, 2, 3)], 0x02, 0x02); // compressed
+        assert!(parse_pmd_acc_frame(&frame).is_none());
+    }
+
+    #[test]
+    fn test_acc_rejects_misaligned_payload() {
+        let mut frame = build_acc_frame(&[(1, 2, 3)], 0x01, 0x02);
+        frame.push(0x00); // stray byte
+        assert!(parse_pmd_acc_frame(&frame).is_none());
+    }
+
+    #[test]
+    fn test_acc_rejects_truncated_header() {
+        assert!(parse_pmd_acc_frame(&[0x02, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn test_acc_empty_payload_yields_no_samples() {
+        let frame = build_acc_frame(&[], 0x01, 0x02);
+        let result = parse_pmd_acc_frame(&frame).unwrap();
+        assert!(result.samples.is_empty());
     }
 }

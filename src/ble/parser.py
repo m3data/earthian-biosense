@@ -1,5 +1,6 @@
-"""Parse BLE Heart Rate Measurement packets from Polar H10."""
+"""Parse BLE packets from Polar H10 — Heart Rate Measurement and PMD accelerometer."""
 
+import struct
 from dataclasses import dataclass
 
 
@@ -65,3 +66,78 @@ def parse_heart_rate_measurement(data: bytearray) -> HeartRateData:
         sensor_contact=sensor_contact_detected if sensor_contact_supported else True,
         energy_expended=energy_expended
     )
+
+
+# =============================================================================
+# PMD Accelerometer (SPEC-013)
+# =============================================================================
+
+# PMD measurement type identifiers (Control Point + Data frames).
+PMD_TYPE_ACC = 0x02
+
+# ACC frame format observed on H10 at 16-bit resolution: uncompressed.
+PMD_ACC_FRAME_TYPE_UNCOMPRESSED = 0x01
+
+# Header: measurement_type(1) + timestamp(8, LE ns) + frame_type(1).
+_PMD_ACC_HEADER_LEN = 10
+_ACC_SAMPLE_LEN = 6  # int16 LE x, y, z
+
+
+@dataclass
+class AccSample:
+    """One 3-axis accelerometer sample, in milli-g."""
+    x: int
+    y: int
+    z: int
+
+
+@dataclass
+class AccFrame:
+    """A decoded PMD accelerometer data frame."""
+    timestamp_ns: int  # device timestamp, nanoseconds (Polar epoch 2000-01-01)
+    samples: list[AccSample]
+
+
+def parse_pmd_acc_frame(data: bytearray) -> AccFrame:
+    """Parse a PMD accelerometer Data-characteristic frame from a Polar H10.
+
+    Frame layout (empirically confirmed at 50Hz / 16-bit / +-4g — see SPEC-013
+    and tests/fixtures/pmd_acc/):
+
+    - Byte 0:      measurement type, must be 0x02 (ACC)
+    - Bytes 1-8:   timestamp, uint64 little-endian, nanoseconds
+    - Byte 9:      frame type (0x01 = uncompressed 16-bit)
+    - Bytes 10..:  contiguous signed int16 little-endian XYZ triples, milli-g
+
+    Only the uncompressed 16-bit frame type is supported. Other resolutions may
+    use delta-compressed frames; those raise rather than silently misdecode.
+    """
+    if len(data) < _PMD_ACC_HEADER_LEN:
+        raise ValueError(f"PMD ACC frame too short: {len(data)} bytes")
+
+    measurement_type = data[0]
+    if measurement_type != PMD_TYPE_ACC:
+        raise ValueError(
+            f"not an ACC frame: measurement type 0x{measurement_type:02x}"
+        )
+
+    timestamp_ns = int.from_bytes(data[1:9], byteorder="little")
+
+    frame_type = data[9]
+    if frame_type != PMD_ACC_FRAME_TYPE_UNCOMPRESSED:
+        raise ValueError(
+            f"unsupported ACC frame type 0x{frame_type:02x} "
+            f"(only uncompressed 0x01 is supported); re-capture and confirm format"
+        )
+
+    payload = data[_PMD_ACC_HEADER_LEN:]
+    if len(payload) % _ACC_SAMPLE_LEN != 0:
+        raise ValueError(
+            f"ACC payload {len(payload)} bytes not a multiple of {_ACC_SAMPLE_LEN}"
+        )
+
+    samples = [
+        AccSample(*struct.unpack_from("<hhh", payload, i))
+        for i in range(0, len(payload), _ACC_SAMPLE_LEN)
+    ]
+    return AccFrame(timestamp_ns=timestamp_ns, samples=samples)

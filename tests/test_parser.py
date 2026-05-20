@@ -1,17 +1,42 @@
-"""Tests for BLE Heart Rate Measurement packet parsing.
+"""Tests for BLE packet parsing.
 
 Covers src/ble/parser.py — byte-level decoding of Bluetooth SIG
-Heart Rate Measurement characteristic data from Polar H10.
+Heart Rate Measurement characteristic data and Polar PMD accelerometer
+frames from the Polar H10.
 """
+
+import json
+import math
+import struct
+from pathlib import Path
 
 import pytest
 
-from src.ble.parser import parse_heart_rate_measurement, HeartRateData
+from src.ble.parser import (
+    parse_heart_rate_measurement,
+    HeartRateData,
+    parse_pmd_acc_frame,
+    AccFrame,
+    AccSample,
+)
 
 
 def _rr_to_raw(rr_ms: int) -> int:
     """Convert RR in milliseconds to raw 1/1024s format."""
     return int(rr_ms * 1024 / 1000)
+
+
+def _build_acc_frame(samples: list[tuple[int, int, int]],
+                     timestamp_ns: int = 599620782387460904,
+                     measurement_type: int = 0x02,
+                     frame_type: int = 0x01) -> bytearray:
+    """Assemble a PMD ACC Data frame from XYZ triples (test helper)."""
+    frame = bytearray([measurement_type])
+    frame += timestamp_ns.to_bytes(8, "little")
+    frame += bytearray([frame_type])
+    for x, y, z in samples:
+        frame += struct.pack("<hhh", x, y, z)
+    return frame
 
 
 class TestParseHeartRateMeasurement:
@@ -111,3 +136,96 @@ class TestParseHeartRateMeasurement:
         assert result.energy_expended is None
         # No contact support -> defaults to True
         assert result.sensor_contact is True
+
+
+# Resolved at import; tests that need it skip cleanly when no fixture is present.
+_PMD_ACC_FIXTURES = sorted(
+    (Path(__file__).parent / "fixtures" / "pmd_acc").glob("pmd_acc_*.jsonl")
+)
+
+
+class TestParsePmdAccFrame:
+    """PMD accelerometer Data-frame decoding (SPEC-013)."""
+
+    def test_single_sample(self):
+        """Minimal frame: header + one XYZ triple, parsed exactly."""
+        frame = _build_acc_frame([(-958, 146, 289)], timestamp_ns=12345)
+        result = parse_pmd_acc_frame(frame)
+        assert isinstance(result, AccFrame)
+        assert result.timestamp_ns == 12345
+        assert result.samples == [AccSample(-958, 146, 289)]
+
+    def test_multi_sample_order_preserved(self):
+        """Multiple samples decode in order with correct axis assignment."""
+        triples = [(1, 2, 3), (-4, -5, -6), (1000, -1000, 0)]
+        result = parse_pmd_acc_frame(_build_acc_frame(triples))
+        assert [(s.x, s.y, s.z) for s in result.samples] == triples
+
+    def test_signed_extremes(self):
+        """int16 boundary values round-trip (negative gravity, full scale)."""
+        triples = [(-32768, 32767, -1), (0, 0, 0)]
+        result = parse_pmd_acc_frame(_build_acc_frame(triples))
+        assert (result.samples[0].x, result.samples[0].y, result.samples[0].z) == (-32768, 32767, -1)
+
+    def test_full_50hz_frame_has_36_samples(self):
+        """At 50Hz the device batches 36 samples (216-byte payload)."""
+        triples = [(i, -i, i * 2) for i in range(36)]
+        frame = _build_acc_frame(triples)
+        assert len(frame) == 226  # 10 header + 216 payload
+        result = parse_pmd_acc_frame(frame)
+        assert len(result.samples) == 36
+
+    def test_rejects_wrong_measurement_type(self):
+        """A non-ACC measurement type (e.g. ECG 0x00) is refused."""
+        frame = _build_acc_frame([(1, 2, 3)], measurement_type=0x00)
+        with pytest.raises(ValueError, match="not an ACC frame"):
+            parse_pmd_acc_frame(frame)
+
+    def test_rejects_unsupported_frame_type(self):
+        """A compressed/unknown frame type raises rather than misdecoding."""
+        frame = _build_acc_frame([(1, 2, 3)], frame_type=0x02)
+        with pytest.raises(ValueError, match="unsupported ACC frame type"):
+            parse_pmd_acc_frame(frame)
+
+    def test_rejects_misaligned_payload(self):
+        """Payload not a multiple of 6 bytes is a corrupt frame."""
+        frame = _build_acc_frame([(1, 2, 3)])
+        frame += bytearray([0x00])  # one stray byte
+        with pytest.raises(ValueError, match="not a multiple"):
+            parse_pmd_acc_frame(frame)
+
+    def test_rejects_truncated_header(self):
+        """A frame shorter than the 10-byte header is rejected."""
+        with pytest.raises(ValueError, match="too short"):
+            parse_pmd_acc_frame(bytearray([0x02, 0x00, 0x00]))
+
+    def test_empty_payload_yields_no_samples(self):
+        """Header-only frame is valid but carries zero samples."""
+        result = parse_pmd_acc_frame(_build_acc_frame([]))
+        assert result.samples == []
+
+    # --- Golden vector: real frames captured from a live H10 -----------------
+
+    @pytest.mark.skipif(not _PMD_ACC_FIXTURES, reason="no captured PMD ACC fixture")
+    def test_golden_fixture_decodes_to_gravity_at_rest(self):
+        """Real captured frames decode to a ~1g magnitude (near-stationary strap).
+
+        This is the load-bearing test: it asserts the decoder reproduces the
+        physics of a real capture, not just a synthetic round-trip. At rest the
+        accelerometer reads the gravity vector, |a| ~ 1000 mg.
+        """
+        fixture = json.loads(_PMD_ACC_FIXTURES[-1].read_text())
+        assert fixture["requested_settings"]["sample_rate_hz"] == 50
+
+        magnitudes = []
+        for raw in fixture["frames"]:
+            frame = parse_pmd_acc_frame(bytearray.fromhex(raw["hex"]))
+            # 50Hz frames carry 36 samples each.
+            assert len(frame.samples) == 36
+            for s in frame.samples:
+                magnitudes.append(math.sqrt(s.x ** 2 + s.y ** 2 + s.z ** 2))
+
+        assert len(magnitudes) == fixture["frame_count"] * 36
+        mean_mag = sum(magnitudes) / len(magnitudes)
+        # Stationary strap: mean magnitude within 15% of 1g.
+        assert 850 <= mean_mag <= 1150, f"mean |a| = {mean_mag:.0f} mg, expected ~1000"

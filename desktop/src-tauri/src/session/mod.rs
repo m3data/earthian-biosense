@@ -15,6 +15,7 @@ use chrono::Local;
 
 use crate::hrv::HRVMetrics;
 use crate::hrv::phase::PhaseDynamics;
+use crate::motion::MotionState;
 
 /// Read `~/.ebs-bridge/current-session.json` and return `claude_session_id`
 /// iff the file exists, parses, and is less than 5 minutes old.
@@ -120,7 +121,7 @@ impl SessionLogger {
         let mut header = json!({
             "type": "session_start",
             "ts": ts,
-            "schema_version": "1.2.0",
+            "schema_version": "1.3.0",
             "session_type": session_type,
             "note": "ent=entrainment (breath-heart sync), coherence=trajectory integrity"
         });
@@ -148,6 +149,7 @@ impl SessionLogger {
         metrics: &HRVMetrics,
         dynamics: &PhaseDynamics,
         coherence: f64,
+        motion: &MotionState,
     ) {
         let writer = match self.writer.as_mut() {
             Some(w) => w,
@@ -204,7 +206,14 @@ impl SessionLogger {
                 "mode_status": dynamics.mode_status,
                 "dwell_time": r2(dynamics.dwell_time),
                 "acceleration_mag": r4(dynamics.mode_score_acceleration),
-                "soft_mode": soft_mode_json
+                "soft_mode": soft_mode_json,
+                "motion_confounded": motion.confounded
+            },
+            "motion": {
+                "mag": r2(motion.motion_mag),
+                "state": motion.state,
+                "confounded": motion.confounded,
+                "n_samples": motion.n_samples
             }
         });
 

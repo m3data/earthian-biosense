@@ -5,17 +5,20 @@
 
 mod ble;
 pub mod hrv;
+pub mod motion;
 pub mod session;
 
 use ble::registry::DeviceRegistry;
-use ble::{connect_and_stream, create_adapter, scan_devices, DeviceStatus, DiscoveredDevice};
+use ble::{connect_and_stream, create_adapter, scan_devices, AccBuffer, DeviceStatus, DiscoveredDevice};
 use btleplug::platform::Adapter;
 use hrv::phase::PhaseTrajectory;
 use hrv::compute_hrv_metrics;
+use motion::{MotionProcessor, MotionState};
 use session::{SessionFileInfo, SessionLogger, SessionSummary};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex as StdMutex};
 use tauri::{Emitter, Manager, State};
 use tokio::sync::{mpsc, Mutex};
 
@@ -85,6 +88,8 @@ struct PhaseEvent {
     acceleration_mag: f64,
     // Soft mode (optional)
     soft_mode: Option<SoftModeEvent>,
+    // Motion channel (SPEC-013)
+    motion: MotionState,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,11 +127,12 @@ async fn cmd_connect(
 
     let device_label = label.unwrap_or_else(|| "A".to_string());
     let (tx, mut rx) = mpsc::unbounded_channel();
+    let acc_buffer: AccBuffer = Arc::new(StdMutex::new(Vec::new()));
 
     let guard = state.get_adapter().await?;
     let adapter = guard.as_ref().unwrap();
     let mut status =
-        connect_and_stream(adapter, address, tx, device_label.clone()).await?;
+        connect_and_stream(adapter, address, tx, device_label.clone(), acc_buffer.clone()).await?;
     drop(guard);
 
     if let Some(info) = state.registry.identify(&status.name) {
@@ -144,14 +150,23 @@ async fn cmd_connect(
     // Spawn the processing pipeline:
     // BLE HR data → RR buffer → HRV metrics → phase dynamics → emit + log
     let handle = app.clone();
+    let acc_buffer_loop = acc_buffer.clone();
     tokio::spawn(async move {
         let mut rr_buffer: VecDeque<u16> = VecDeque::with_capacity(RR_BUFFER_SIZE);
         let mut trajectory = PhaseTrajectory::new(30);
+        let mut motion_proc = MotionProcessor::new();
         let mut _tick_count: u64 = 0;
 
         loop {
             tokio::select! {
                 Some((label, hr_data)) = rx.recv() => {
+                    // Drain accelerometer samples accumulated since the last tick
+                    // and derive this tick's motion state (SPEC-013).
+                    let acc_samples: Vec<[i16; 3]> = match acc_buffer_loop.lock() {
+                        Ok(mut b) => b.drain(..).collect(),
+                        Err(_) => Vec::new(),
+                    };
+                    let motion_state = motion_proc.update(&acc_samples);
                     // Add RR intervals to buffer
                     for rr in &hr_data.rr_intervals {
                         rr_buffer.push_back(*rr);
@@ -223,8 +238,18 @@ async fn cmd_connect(
                         dwell_time: dynamics.dwell_time,
                         acceleration_mag: dynamics.mode_score_acceleration,
                         soft_mode: soft_mode_event,
+                        motion: motion_state.clone(),
                     };
                     handle.emit("ebs:phase", &event).ok();
+
+                    // Range-egress warning: sustained motion before a likely dropout.
+                    if motion_state.range_egress_warning {
+                        handle.emit("ebs:range_egress_warning", &serde_json::json!({
+                            "ts": ts.clone(),
+                            "motion_mag": motion_state.motion_mag,
+                            "sustained_ticks": motion_state.sustained_moving_ticks,
+                        })).ok();
+                    }
 
                     // Also emit raw HR for the session bar display
                     handle.emit("ebs:hr", &serde_json::json!({
@@ -245,6 +270,7 @@ async fn cmd_connect(
                                 &metrics,
                                 &dynamics,
                                 coherence,
+                                &motion_state,
                             );
                         }
                     }
