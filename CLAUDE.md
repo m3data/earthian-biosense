@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** Accelerometer / motion channel (SPEC-013) — v0.4.0, live-validated 2026-05-20, ready to tag/release
+**Phase:** Signed phase-coupling channel (2026-05-23) — entrainment floor / sign-collapse fix, both engines. Then: accelerometer / motion channel (SPEC-013) — v0.4.0, live-validated 2026-05-20.
+**Latest work (2026-05-23):** `compute_entrainment` clamped peak breath-band autocorrelation with `max(0,…)`, folding anti-phase onto 0.0 (conflating anti-phase with decoupled; pinned the somatic phase-space trajectory flat against the entrainment=0 wall). Fixed additively: new signed `phase_coupling ∈ [-1,1]` field, `entrainment = max(0, phase_coupling)`. Back-compatible — entrainment/calm-score/labels/position triple unchanged. Both engines (`hrv.py`, `hrv/mod.rs`) + session logger + schema (Python 1.2.0, Rust 1.4.0). Tests: Python +9 (120 total), Rust +2 (52). Logged in `Action-Research/ebs-review-2026-04-18.md` Layer 4. Published preprint left as-is (Mat's call). NOTE: engine schema versions diverged (Python lineage skipped motion-channel 1.3.0).
 **Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-05-20_accelerometer-motion-channel.md`
 **Previous:** RAA-EBS-001 remediation complete — v0.2.1 (2026-02-24)
 **Key Result:** First non-cardiac signal dimension. Polar PMD accelerometer decoded (uncompressed 16-bit XYZ, format confirmed against real device capture in `tests/fixtures/pmd_acc/`) and a motion channel derived (gravity-removal → RMS magnitude → debounced still/moving gate → range-egress warning). Implemented in both engines: Python (`src/ble/parser.py`, `src/processing/motion.py`) and Rust (`desktop/src-tauri/src/ble/parser.rs`, `src/motion/`, PMD wiring in `ble/mod.rs`, folded into `lib.rs` phase event + JSONL). Schema 1.3.0 (`motion` object + `phase.motion_confounded`, optional/back-compatible). Tests: Python 112, Rust 50.

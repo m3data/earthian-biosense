@@ -67,6 +67,9 @@ struct PhaseEvent {
     amplitude: u16,
     entrainment: f64,
     entrainment_label: String,
+    /// Signed breath-band coupling (−1..1); entrainment's positive part, with
+    /// anti-phase preserved distinct from decoupled.
+    phase_coupling: f64,
     breath_rate: Option<f64>,
     mode: String,
     mode_score: f64,
@@ -220,6 +223,7 @@ async fn cmd_connect(
                         amplitude: metrics.amplitude,
                         entrainment: metrics.entrainment,
                         entrainment_label: metrics.entrainment_label.clone(),
+                        phase_coupling: metrics.phase_coupling,
                         breath_rate: metrics.breath_rate,
                         mode: metrics.mode_label.clone(),
                         mode_score: metrics.mode_score,

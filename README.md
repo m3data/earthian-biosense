@@ -1,7 +1,7 @@
 # EarthianBioSense
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.4.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.4.1-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
 
 Biosignal acquisition and analysis for research into adaptive capacity — how it can be sensed, supported, and stewarded through somatic and computational signals.
@@ -21,7 +21,7 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 
 ## Capture Methods
 
-### macOS Desktop App — v0.4.0
+### macOS Desktop App — v0.4.1
 
 Native macOS app built with Tauri v2 (Rust + webview). Designed for long-duration background data collection — start a session, hide the window, come back hours later.
 
@@ -198,7 +198,7 @@ The `motion` block and `phase.motion_confounded` are present only on sessions ca
 │                         Capture Layer                                │
 ├──────────────────────┬───────────────────────┬───────────────────────┤
 │  macOS Desktop App   │  iOS App (EBSCapture) │  Python Terminal App  │
-│  v0.4.0 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
+│  v0.4.1 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
 │  - Long-duration     │  - Mobile capture      │  - Desktop capture   │
 │  - Background BLE    │  - On-device HRV       │  - WebSocket stream  │
 │  - Rust HRV pipeline │  - Real-time feedback  │  - ASCII viz         │

@@ -69,6 +69,9 @@ class SessionLogger:
                 "amp": metrics.amplitude,
                 "ent": round(metrics.entrainment, 3),  # entrainment (breath-heart sync)
                 "ent_label": metrics.entrainment_label,
+                # signed breath-band coupling: entrainment's positive part, with
+                # anti-phase (<0) preserved distinct from decoupled (~0).
+                "phase_coupling": round(metrics.phase_coupling, 3),
                 "breath": round(metrics.breath_rate, 1) if metrics.breath_rate else None,
                 "volatility": round(metrics.rr_volatility, 4),
                 # Keep flat mode fields for backward compat

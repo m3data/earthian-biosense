@@ -32,6 +32,11 @@ class HRVMetrics:
     mode_label: str
     mode_score: float  # 0-1
 
+    # Signed breath-band phase coupling (-1 to 1). entrainment is its positive
+    # part; this field preserves the anti-phase half the clamp used to discard.
+    # Defaulted for back-compatibility with positional construction sites.
+    phase_coupling: float = 0.0
+
 
 def compute_amplitude(rr_intervals: list[int]) -> int:
     """Compute rolling amplitude (max - min) over window."""
@@ -65,6 +70,41 @@ def compute_autocorrelation(rr_intervals: list[int], lag: int) -> float:
     return autocovariance / variance
 
 
+def compute_phase_coupling(rr_intervals: list[int]) -> float:
+    """
+    Compute SIGNED breath-band phase coupling: the peak autocorrelation across
+    breath-frequency lags, in [-1, 1].
+
+    This is the raw coupling signal before any clamping. It distinguishes three
+    qualitatively different states that the non-negative entrainment scalar cannot:
+
+    - positive  → the heart rhythm is phase-locked to breathing (entrainment)
+    - near zero → no rhythmic relationship (decoupled)
+    - negative  → the rhythm is anti-phase with the breath band (active
+                  dysregulation, or slow resonant breathing whose true period
+                  sits outside the 4-8 lag window — see P3-E)
+
+    entrainment (below) is the non-negative part of this value. Folding the
+    negative half onto zero conflated "anti-phase" with "decoupled" and pinned
+    the somatic phase-space trajectory flat against the entrainment=0 wall.
+
+    Returns 0.0 when there is insufficient data.
+    """
+    if len(rr_intervals) < 10:
+        return 0.0
+
+    # Check autocorrelation at multiple lags around expected breath period.
+    # At ~60 BPM, breath period of 10s = ~10 beats. Lags 4-8 cover ~4-8 beat
+    # breath cycles. (Adaptive lag selection from compute_breath_rate() output
+    # is a future improvement — see P3-E in RAA-EBS-001 convergence report.)
+    lags = [4, 5, 6, 7, 8]
+    correlations = [compute_autocorrelation(rr_intervals, lag) for lag in lags]
+
+    # Peak autocorrelation indicates rhythmic oscillation; keep its sign.
+    max_corr = max(correlations) if correlations else 0.0
+    return max(-1.0, min(1.0, max_corr))
+
+
 def compute_entrainment(rr_intervals: list[int]) -> tuple[float, str]:
     """
     Compute entrainment scalar using autocorrelation at breath-frequency lags.
@@ -76,29 +116,17 @@ def compute_entrainment(rr_intervals: list[int]) -> tuple[float, str]:
     requires tracking movement through phase space and computing autocorrelation
     of the trajectory itself.
 
-    Entrained breathing at ~6 breaths/min = ~10s period = ~10-12 RR intervals at 60 BPM.
-    We check autocorrelation at fixed lags [4-8] covering ~4-8 beat breath cycles.
-
-    Note: lag range does not currently cover slow resonant breathing (~6 breaths/min,
-    ~10-beat period). Adaptive lag selection from compute_breath_rate() output is a
-    future improvement (see P3-E in RAA-EBS-001 convergence report).
+    Entrainment is the non-negative part of compute_phase_coupling(): a strength,
+    bounded [0, 1]. The signed coupling (anti-phase vs decoupled) is preserved
+    separately by compute_phase_coupling() for use as a phase-space coordinate.
 
     Returns (entrainment_score, label)
     """
     if len(rr_intervals) < 10:
         return 0.0, "[insufficient data]"
 
-    # Check autocorrelation at multiple lags around expected breath period
-    # At ~60 BPM, breath period of 10s = ~10 beats
-    # We'll check lags 4-8 (covering ~4-8 beat breath cycles)
-    lags = [4, 5, 6, 7, 8]
-    correlations = [compute_autocorrelation(rr_intervals, lag) for lag in lags]
-
-    # Peak autocorrelation indicates rhythmic oscillation
-    max_corr = max(correlations) if correlations else 0.0
-
-    # Clamp to 0-1 range (autocorrelation can be negative)
-    entrainment = max(0.0, min(1.0, max_corr))
+    # Entrainment is locking *strength*: the positive part of signed coupling.
+    entrainment = max(0.0, min(1.0, compute_phase_coupling(rr_intervals)))
 
     # Apply labels
     if entrainment < 0.2:
@@ -282,6 +310,7 @@ def compute_hrv_metrics(rr_intervals: list[int]) -> HRVMetrics:
     max_rr = max(rr_intervals)
 
     amplitude = compute_amplitude(rr_intervals)
+    phase_coupling = compute_phase_coupling(rr_intervals)
     entrainment, entrainment_label = compute_entrainment(rr_intervals)
     breath_rate, breath_steady = compute_breath_rate(rr_intervals)
     volatility = compute_volatility(rr_intervals)
@@ -297,6 +326,7 @@ def compute_hrv_metrics(rr_intervals: list[int]) -> HRVMetrics:
         breath_rate=breath_rate,
         breath_steady=breath_steady,
         rr_volatility=volatility,
+        phase_coupling=phase_coupling,
         mode_label=mode_label,
         mode_score=mode_score
     )

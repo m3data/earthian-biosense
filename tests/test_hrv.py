@@ -11,6 +11,7 @@ from src.processing.hrv import (
     compute_amplitude,
     compute_autocorrelation,
     compute_entrainment,
+    compute_phase_coupling,
     find_peaks,
     compute_breath_rate,
     compute_volatility,
@@ -18,6 +19,15 @@ from src.processing.hrv import (
     compute_hrv_metrics,
     HRVMetrics,
 )
+
+
+# Period-12 oscillation: breath-band lags 4-8 all fall in the anti-phase
+# half of the cycle, so peak autocorrelation across the band is negative.
+# Physiologically this is ~5 breaths/min — slow resonant breathing whose
+# true period sits outside the 4-8 lag window (the P3-E blind spot), which
+# the old clamp collapsed to zero entrainment.
+def _anti_phase_rr():
+    return [1000 + int(80 * math.sin(2 * math.pi * i / 12)) for i in range(36)]
 
 
 class TestComputeAmplitude:
@@ -109,6 +119,45 @@ class TestComputeEntrainment:
         score, _ = compute_entrainment(rr_with_oscillation)
         assert 0.0 <= score <= 1.0
 
+    def test_anti_phase_clamps_to_zero(self):
+        """Entrainment stays non-negative: anti-phase reads as zero strength."""
+        score, _ = compute_entrainment(_anti_phase_rr())
+        assert score == 0.0
+
+
+class TestComputePhaseCoupling:
+    """Signed breath-band coupling — preserves the half the clamp discarded.
+
+    phase_coupling is the signed peak breath-band autocorrelation in [-1, 1].
+    entrainment is its non-negative part (max(0, phase_coupling)), so anti-phase
+    (negative) and decoupled (zero) are distinguishable here even though both
+    read as zero entrainment.
+    """
+
+    def test_entrained_signal_positive(self, rr_with_oscillation):
+        pc = compute_phase_coupling(rr_with_oscillation)
+        assert pc > 0.4
+
+    def test_anti_phase_signal_negative(self):
+        """The states the old clamp flattened to the wall now read negative."""
+        pc = compute_phase_coupling(_anti_phase_rr())
+        assert pc < 0.0
+
+    def test_signed_range(self, rr_with_oscillation, rr_noisy):
+        for rr in (rr_with_oscillation, rr_noisy, _anti_phase_rr()):
+            assert -1.0 <= compute_phase_coupling(rr) <= 1.0
+
+    def test_insufficient_data_zero(self, rr_very_short):
+        assert compute_phase_coupling(rr_very_short) == 0.0
+
+    def test_entrainment_is_positive_part(self):
+        """Contract: entrainment == max(0, phase_coupling) for the same signal."""
+        for rr in (_anti_phase_rr(),
+                   [1000 + int(80 * math.sin(2 * math.pi * i / 5)) for i in range(30)]):
+            pc = compute_phase_coupling(rr)
+            ent, _ = compute_entrainment(rr)
+            assert ent == max(0.0, pc)
+
 
 class TestFindPeaks:
     """Local maxima detection in RR interval series."""
@@ -193,11 +242,24 @@ class TestComputeHRVMetrics:
         assert m.mode_label != ""
         assert 0.0 <= m.mode_score <= 1.0
 
+    def test_phase_coupling_field(self, rr_with_oscillation):
+        """phase_coupling is populated, signed, and entrainment is its positive part."""
+        m = compute_hrv_metrics(rr_with_oscillation)
+        assert -1.0 <= m.phase_coupling <= 1.0
+        assert m.entrainment == max(0.0, m.phase_coupling)
+
+    def test_anti_phase_pipeline_preserves_sign(self):
+        """At the wall, entrainment is 0 but phase_coupling retains the negative signal."""
+        m = compute_hrv_metrics(_anti_phase_rr())
+        assert m.entrainment == 0.0
+        assert m.phase_coupling < 0.0
+
     def test_empty_input_defaults(self, rr_empty):
         m = compute_hrv_metrics(rr_empty)
         assert m.mean_rr == 0
         assert m.amplitude == 0
         assert m.entrainment == 0
         assert m.entrainment_label == "[no data]"
+        assert m.phase_coupling == 0.0
         assert m.breath_rate is None
         assert m.mode_label == "unknown"

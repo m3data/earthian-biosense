@@ -435,6 +435,7 @@ mod tests {
             amplitude,
             entrainment,
             entrainment_label: "[low]".to_string(),
+            phase_coupling: entrainment,
             breath_rate,
             breath_steady: true,
             rr_volatility: 0.03,

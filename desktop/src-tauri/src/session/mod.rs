@@ -121,7 +121,7 @@ impl SessionLogger {
         let mut header = json!({
             "type": "session_start",
             "ts": ts,
-            "schema_version": "1.3.0",
+            "schema_version": "1.4.0",
             "session_type": session_type,
             "note": "ent=entrainment (breath-heart sync), coherence=trajectory integrity"
         });

@@ -20,10 +20,17 @@ pub struct HRVMetrics {
     /// Rolling amplitude: max − min (ms). Vagal expansion signal.
     pub amplitude: u16,
 
-    /// Entrainment scalar (0–1). Breath-heart phase coupling.
+    /// Entrainment scalar (0–1). Breath-heart phase-locking *strength* — the
+    /// non-negative part of `phase_coupling`.
     pub entrainment: f64,
     /// Human-readable entrainment label.
     pub entrainment_label: String,
+
+    /// Signed breath-band phase coupling (−1 to 1). Preserves the anti-phase
+    /// half that clamping `entrainment` to 0 used to discard, so anti-phase
+    /// (< 0) stays distinct from decoupled (≈ 0).
+    #[serde(default)]
+    pub phase_coupling: f64,
 
     /// Estimated breath rate (breaths per minute), if detectable.
     pub breath_rate: Option<f64>,
@@ -78,15 +85,17 @@ pub fn compute_autocorrelation(rr: &[u16], lag: usize) -> f64 {
     autocovariance / variance
 }
 
-/// Compute entrainment scalar using autocorrelation at breath-frequency lags.
+/// Compute SIGNED breath-band phase coupling: the peak autocorrelation across
+/// breath-frequency lags, in `[-1, 1]`.
 ///
-/// Measures breath-heart entrainment (respiratory sinus arrhythmia) — how
-/// tightly the heart rhythm is phase-locked to breathing.
-///
-/// Returns `(entrainment_score, label)`.
-pub fn compute_entrainment(rr: &[u16]) -> (f64, String) {
+/// Distinguishes states the non-negative entrainment scalar cannot:
+/// positive → phase-locked (entrained); ≈ 0 → decoupled; < 0 → anti-phase
+/// (active dysregulation, or slow resonant breathing whose true period sits
+/// outside the 4–8 lag window — see P3-E). `compute_entrainment` is the
+/// non-negative part of this value. Returns 0.0 on insufficient data.
+pub fn compute_phase_coupling(rr: &[u16]) -> f64 {
     if rr.len() < 10 {
-        return (0.0, "[insufficient data]".to_string());
+        return 0.0;
     }
 
     let lags: [usize; 5] = [4, 5, 6, 7, 8];
@@ -97,8 +106,24 @@ pub fn compute_entrainment(rr: &[u16]) -> (f64, String) {
         .copied()
         .fold(f64::NEG_INFINITY, f64::max);
 
-    // Clamp to 0–1.
-    let entrainment = max_corr.clamp(0.0, 1.0);
+    max_corr.clamp(-1.0, 1.0)
+}
+
+/// Compute entrainment scalar using autocorrelation at breath-frequency lags.
+///
+/// Measures breath-heart entrainment (respiratory sinus arrhythmia) — how
+/// tightly the heart rhythm is phase-locked to breathing. This is the
+/// non-negative part of `compute_phase_coupling`; the signed coupling is
+/// preserved separately for use as a phase-space coordinate.
+///
+/// Returns `(entrainment_score, label)`.
+pub fn compute_entrainment(rr: &[u16]) -> (f64, String) {
+    if rr.len() < 10 {
+        return (0.0, "[insufficient data]".to_string());
+    }
+
+    // Entrainment is locking *strength*: the positive part of signed coupling.
+    let entrainment = compute_phase_coupling(rr).clamp(0.0, 1.0);
 
     let label = if entrainment < 0.2 {
         "[low]"
@@ -282,6 +307,7 @@ pub fn compute_hrv_metrics(rr: &[u16]) -> HRVMetrics {
             amplitude: 0,
             entrainment: 0.0,
             entrainment_label: "[no data]".to_string(),
+            phase_coupling: 0.0,
             breath_rate: None,
             breath_steady: false,
             rr_volatility: 0.0,
@@ -295,6 +321,7 @@ pub fn compute_hrv_metrics(rr: &[u16]) -> HRVMetrics {
     let max_rr = *rr.iter().max().unwrap();
 
     let amplitude = compute_amplitude(rr);
+    let phase_coupling = compute_phase_coupling(rr);
     let (entrainment, entrainment_label) = compute_entrainment(rr);
     let (breath_rate, breath_steady) = compute_breath_rate(rr);
     let rr_volatility = compute_volatility(rr);
@@ -307,6 +334,7 @@ pub fn compute_hrv_metrics(rr: &[u16]) -> HRVMetrics {
         amplitude,
         entrainment,
         entrainment_label,
+        phase_coupling,
         breath_rate,
         breath_steady,
         rr_volatility,
@@ -385,6 +413,45 @@ mod tests {
             "expected high entrainment, got {score_h}"
         );
         assert_eq!(label_h, "[high entrainment]");
+    }
+
+    /// Period-12 oscillation (~5 breaths/min): breath-band lags 4–8 all fall in
+    /// the anti-phase half of the cycle, so peak coupling is negative. This is
+    /// the state the old clamp flattened onto the entrainment=0 wall.
+    fn anti_phase_rr() -> Vec<u16> {
+        (0..36)
+            .map(|i| (1000.0 + 80.0 * (2.0 * std::f64::consts::PI * i as f64 / 12.0).sin()) as u16)
+            .collect()
+    }
+
+    #[test]
+    fn test_phase_coupling_signed() {
+        // Entrained signal → positive.
+        let high: Vec<u16> = (0..40)
+            .map(|i| (1000.0 + 120.0 * (2.0 * std::f64::consts::PI * i as f64 / 5.0).sin()) as u16)
+            .collect();
+        assert!(compute_phase_coupling(&high) > 0.4);
+
+        // Anti-phase → negative (the wall samples), in range, insufficient → 0.
+        let pc_anti = compute_phase_coupling(&anti_phase_rr());
+        assert!(pc_anti < 0.0, "anti-phase should read negative, got {pc_anti}");
+        assert!((-1.0..=1.0).contains(&pc_anti));
+        assert_eq!(compute_phase_coupling(&[800, 850, 900]), 0.0);
+    }
+
+    #[test]
+    fn test_entrainment_is_positive_part_of_coupling() {
+        // Anti-phase: entrainment clamps to 0 while coupling retains the sign.
+        let anti = anti_phase_rr();
+        let pc = compute_phase_coupling(&anti);
+        let (ent, _) = compute_entrainment(&anti);
+        assert!(pc < 0.0);
+        assert_eq!(ent, pc.max(0.0));
+
+        // Full pipeline carries the signed channel through.
+        let m = compute_hrv_metrics(&anti);
+        assert_eq!(m.entrainment, 0.0);
+        assert!(m.phase_coupling < 0.0);
     }
 
     #[test]
