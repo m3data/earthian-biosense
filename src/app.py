@@ -205,7 +205,8 @@ class TerminalUI:
                     mode=self.latest_metrics.mode_label,
                     amplitude=self.latest_metrics.amplitude,
                     breath_rate=self.latest_metrics.breath_rate,
-                    entrainment_label=self.latest_metrics.entrainment_label
+                    entrainment_label=self.latest_metrics.entrainment_label,
+                    phase_coupling=self.latest_metrics.phase_coupling
                 ))
 
         # Calculate stats

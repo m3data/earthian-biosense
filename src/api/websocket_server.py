@@ -181,6 +181,51 @@ class WebSocketServer:
             "message": message
         }))
 
+    @staticmethod
+    def _build_phase_message(
+        timestamp: datetime,
+        hr: int,
+        position: tuple[float, float, float],
+        velocity: tuple[float, float, float],
+        velocity_mag: float,
+        curvature: float,
+        stability: float,
+        entrainment: float,
+        phase_label: str,
+        coherence: float = 0.0,
+        mode: str = "",
+        amplitude: int = 0,
+        breath_rate: float | None = None,
+        entrainment_label: str = "",
+        phase_coupling: float = 0.0,
+    ) -> dict:
+        """Build the 1Hz phase-dynamics wire message.
+
+        Note: 'entrainment' is breath-heart phase coupling (local sync), the
+        non-negative part of 'phase_coupling'. 'phase_coupling' is signed
+        [-1, 1] — anti-phase (<0) is distinct from decoupled (~0). 'coherence'
+        is trajectory integrity (global metric). Extracted from broadcast_phase
+        so the contract is unit-testable without a socket.
+        """
+        return {
+            "type": "phase",
+            "ts": timestamp.isoformat(),
+            "hr": hr,
+            "position": [round(p, 4) for p in position],  # (entrainment, breath, amplitude)
+            "velocity": [round(v, 4) for v in velocity],
+            "velocity_mag": round(velocity_mag, 4),
+            "curvature": round(curvature, 4),
+            "stability": round(stability, 4),
+            "entrainment": round(entrainment, 3),  # breath-heart sync (clamped ≥0)
+            "phase_label": phase_label,
+            "coherence": round(coherence, 4),
+            "mode": mode,
+            "amplitude": amplitude,
+            "breath_rate": round(breath_rate, 1) if breath_rate else None,
+            "entrainment_label": entrainment_label,
+            "phase_coupling": round(phase_coupling, 4),  # signed [-1,1]
+        }
+
     async def broadcast_phase(
         self,
         timestamp: datetime,
@@ -196,32 +241,17 @@ class WebSocketServer:
         mode: str = "",
         amplitude: int = 0,
         breath_rate: float | None = None,
-        entrainment_label: str = ""
+        entrainment_label: str = "",
+        phase_coupling: float = 0.0,
     ):
-        """Broadcast phase dynamics to all connected clients (1Hz).
-
-        Note: 'entrainment' is breath-heart phase coupling (local sync).
-        'coherence' is trajectory integrity (global metric).
-        """
+        """Broadcast phase dynamics to all connected clients (1Hz)."""
         if not self.clients:
             return
-        message = {
-            "type": "phase",
-            "ts": timestamp.isoformat(),
-            "hr": hr,
-            "position": [round(p, 4) for p in position],  # (entrainment, breath, amplitude)
-            "velocity": [round(v, 4) for v in velocity],
-            "velocity_mag": round(velocity_mag, 4),
-            "curvature": round(curvature, 4),
-            "stability": round(stability, 4),
-            "entrainment": round(entrainment, 3),  # breath-heart sync
-            "phase_label": phase_label,
-            "coherence": round(coherence, 4),
-            "mode": mode,
-            "amplitude": amplitude,
-            "breath_rate": round(breath_rate, 1) if breath_rate else None,
-            "entrainment_label": entrainment_label
-        }
+        message = self._build_phase_message(
+            timestamp, hr, position, velocity, velocity_mag, curvature,
+            stability, entrainment, phase_label, coherence, mode, amplitude,
+            breath_rate, entrainment_label, phase_coupling,
+        )
 
         # Broadcast to all clients
         await asyncio.gather(
