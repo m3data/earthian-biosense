@@ -1,6 +1,6 @@
 [package]
 name = "earthian-biosense"
-version = "0.4.1"
+version = "0.5.0"
 description = "EarthianBioSense Desktop — HRV acquisition and phase space visualisation"
 authors = ["Mat Mytka <m3untold@gmail.com>"]
 license = "AGPL-3.0"

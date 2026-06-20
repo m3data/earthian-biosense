@@ -3,6 +3,37 @@
 All notable changes to EarthianBioSense are documented here.
 Versioning is semantic; dates are ISO-8601.
 
+## [0.5.0] — 2026-06-20
+
+### Added — Two-axis mode classification (SPEC-014)
+
+A second, orthogonal classification axis. Until now the six autonomic modes were
+bins along a single scalar (`calm_score` — stillness/entrainment); the project's
+own key distinction, *coherence is not entrainment*, was absent from the
+classifier. `trajectory_coherence` was computed, logged, and streamed every tick
+but never reached the mode decision — despite being empirically orthogonal to
+`calm_score` (corr +0.001 across 36 sessions / 15,909 records). This release adds
+soft membership over a 2-D (stillness × trajectory-coherence) plane as an
+additive field; the existing 1-D mode is untouched.
+
+- **2-D classifier** (Python `src/processing/movement.py`, Rust `desktop/src-tauri/src/hrv/movement.rs`) — `compute_2d_mode_membership(calm, coherence)` over five provisional modes (reactive, engaged, transitional, constrained stillness, settled presence); softmax on equal-weighted plane distance. Centroids/temperature mirrored across both engines.
+- **Wiring** — computed right after `trajectory_coherence` (consuming the same canonical value that is logged and streamed), in `src/app.py` and `desktop/src-tauri/src/lib.rs`.
+- **Replay viz** — a "two-axis field" panel (opt-in, delayed-revelation) in both frontends: ambiguity rendered as marker softness, no evaluative encoding, a fading trajectory trail, a breathing marker. Live channels (Python WebSocket `phase` message, Rust `ebs:phase` event) carry `mode_score` + `soft_mode_2d`.
+- **Schema** — additive `phase.soft_mode_2d` object (primary/secondary/ambiguity/distribution_shift/membership). Python **1.2.0 → 1.4.0**; Rust desktop **1.4.0 → 1.5.0** (independent lineages — same feature, different version string; detect by the field, not the version). Pre-feature sessions omit it and remain valid.
+
+Tests: Python 135 passed (incl. the WebSocket wire contract), Rust 62 passed.
+
+**Validated** on replay over 15,909 real records: the ambiguity field de-saturates
+(1-D pinned at 0.996 → 2-D 0.336–1.000); old "subtle alertness" splits 50% reactive
+/ 45% transitional / 5% engaged; 21% of old "settling" is actually `constrained
+stillness` (settled but brittle) — a cut the 1-D ladder could not make.
+
+A clean-context adversarial review (USDD P12) caught two bugs the build missed,
+both fixed in this release: a cross-session `distribution_shift` state-leak in
+both engines' `reset()`, and a warm-up mislabel in the replay fallback. Provisional
+label set and a single-source-of-truth dedupe for the duplicated centroids are
+tracked in SPEC-014.
+
 ## [0.4.0] — 2026-05-20
 
 ### Added — Accelerometer / motion channel (SPEC-013)

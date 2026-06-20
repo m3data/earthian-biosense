@@ -1,7 +1,7 @@
 # EarthianBioSense
 
 ![Repo Status](https://img.shields.io/badge/REPO_STATUS-Active_Research-blue?style=for-the-badge&labelColor=8b5e3c&color=e5dac1)
-![Version](https://img.shields.io/badge/VERSION-0.4.1-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
+![Version](https://img.shields.io/badge/VERSION-0.5.0-blue?style=for-the-badge&labelColor=3b82f6&color=1e40af)
 ![License](https://img.shields.io/badge/LICENSE-ESL--A-green?style=for-the-badge&labelColor=10b981&color=047857)
 
 Biosignal acquisition and analysis for research into adaptive capacity — how it can be sensed, supported, and stewarded through somatic and computational signals.
@@ -21,7 +21,7 @@ Captures heart rate variability from Polar H10 monitors, computes HRV metrics, a
 
 ## Capture Methods
 
-### macOS Desktop App — v0.4.1
+### macOS Desktop App — v0.5.0
 
 Native macOS app built with Tauri v2 (Rust + webview). Designed for long-duration background data collection — start a session, hide the window, come back hours later.
 
@@ -32,8 +32,9 @@ Location: `desktop/`
 - BLE connection to Polar H10 via btleplug (CoreBluetooth)
 - Full HRV processing in Rust (50 unit tests) — port of the Python pipeline
 - **Accelerometer / motion channel** via the Polar PMD service (still/moving gate, motion-confound flag, range-egress warning)
+- **Two-axis mode field** (stillness × trajectory coherence) — a second, orthogonal classification axis surfaced as a live panel in the webview
 - Live phase space visualisation in the webview
-- Session recording to JSONL (schema 1.3.0, compatible with all other tools)
+- Session recording to JSONL (schema 1.5.0, compatible with all other tools)
 - Session replay from the same app
 
 **Install:** Download the DMG from [GitHub Releases](https://github.com/m3data/earthian-biosense/releases), or build from source:
@@ -132,7 +133,7 @@ Six modes emerge from position in feature space (entrainment, breath steadiness,
 
 Modes use soft classification — you're never fully "in" one mode, but have membership across all six.
 
-## Output Format (Schema 1.3.0)
+## Output Format (Schema 1.5.0)
 
 Each processed record contains:
 
@@ -174,6 +175,18 @@ Each processed record contains:
         "rhythmic settling": 0.25,
         "settled presence": 0.05
       }
+    },
+    "soft_mode_2d": {
+      "primary": "settled presence",
+      "secondary": "engaged",
+      "ambiguity": 0.42,
+      "membership": {
+        "reactive": 0.04,
+        "engaged": 0.20,
+        "transitional": 0.12,
+        "constrained stillness": 0.02,
+        "settled presence": 0.62
+      }
     }
   },
   "motion": {
@@ -185,7 +198,9 @@ Each processed record contains:
 }
 ```
 
-The `motion` block and `phase.motion_confounded` are present only on sessions captured with the accelerometer enabled (schema 1.3.0+); earlier sessions omit them and remain valid.
+The `motion` block and `phase.motion_confounded` are present only on sessions captured with the accelerometer enabled (schema 1.3.0+); earlier sessions omit them and remain valid. The `phase.soft_mode_2d` block (the two-axis stillness × coherence field) is present on schema 1.4.0+ (Python engine) / 1.5.0+ (Rust desktop); earlier sessions omit it and remain valid.
+
+> **Schema lineage note:** the Python and Rust desktop engines have independent schema lineages, so the same feature can carry different version numbers — the two-axis field is **1.4.0** in the Python engine and **1.5.0** in the Rust desktop (which had already reached 1.4.0 with the motion channel the Python lineage skipped). Detect feature presence by the field, not the version string.
 
 ## Research
 
@@ -198,7 +213,7 @@ The `motion` block and `phase.motion_confounded` are present only on sessions ca
 │                         Capture Layer                                │
 ├──────────────────────┬───────────────────────┬───────────────────────┤
 │  macOS Desktop App   │  iOS App (EBSCapture) │  Python Terminal App  │
-│  v0.4.1 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
+│  v0.5.0 (Tauri/Rust) │  v0.2 (SwiftUI)       │                      │
 │  - Long-duration     │  - Mobile capture      │  - Desktop capture   │
 │  - Background BLE    │  - On-device HRV       │  - WebSocket stream  │
 │  - Rust HRV pipeline │  - Real-time feedback  │  - ASCII viz         │
@@ -209,7 +224,7 @@ The `motion` block and `phase.motion_confounded` are present only on sessions ca
            │                       │                       │
            ▼                       ▼                       ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                    JSONL Sessions (schema 1.3.0)                     │
+│                    JSONL Sessions (schema 1.5.0)                     │
 │   All three apps write the same format — sessions are portable       │
 └──────────────────────────────────────────────────────────────────────┘
 ```

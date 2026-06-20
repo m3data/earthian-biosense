@@ -5,19 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ---
 ## Status Header
 
-**Phase:** Signed phase-coupling channel (2026-05-23) — entrainment floor / sign-collapse fix, both engines. Then: accelerometer / motion channel (SPEC-013) — v0.4.0, live-validated 2026-05-20.
-**Latest (2026-05-25):** signed `phase_coupling` now broadcast on the 1Hz WebSocket phase message (`_build_phase_message`) — anti-phase distinguishable from decoupled for stream consumers; drives somatic-wayfinder SPEC-001 Tier 1. Commit `6827fd3`.
-**Latest work (2026-05-23):** `compute_entrainment` clamped peak breath-band autocorrelation with `max(0,…)`, folding anti-phase onto 0.0 (conflating anti-phase with decoupled; pinned the somatic phase-space trajectory flat against the entrainment=0 wall). Fixed additively: new signed `phase_coupling ∈ [-1,1]` field, `entrainment = max(0, phase_coupling)`. Back-compatible — entrainment/calm-score/labels/position triple unchanged. Both engines (`hrv.py`, `hrv/mod.rs`) + session logger + schema (Python 1.2.0, Rust 1.4.0). Tests: Python +9 (120 total), Rust +2 (52). Logged in `Action-Research/ebs-review-2026-04-18.md` Layer 4. Published preprint left as-is (Mat's call). NOTE: engine schema versions diverged (Python lineage skipped motion-channel 1.3.0).
-**Latest Dev Update:** `claude-dev/DEV_UPDATE_2026-05-20_accelerometer-motion-channel.md`
-**Previous:** RAA-EBS-001 remediation complete — v0.2.1 (2026-02-24)
-**Key Result:** First non-cardiac signal dimension. Polar PMD accelerometer decoded (uncompressed 16-bit XYZ, format confirmed against real device capture in `tests/fixtures/pmd_acc/`) and a motion channel derived (gravity-removal → RMS magnitude → debounced still/moving gate → range-egress warning). Implemented in both engines: Python (`src/ble/parser.py`, `src/processing/motion.py`) and Rust (`desktop/src-tauri/src/ble/parser.rs`, `src/motion/`, PMD wiring in `ble/mod.rs`, folded into `lib.rs` phase event + JSONL). Schema 1.3.0 (`motion` object + `phase.motion_confounded`, optional/back-compatible). Tests: Python 112, Rust 50.
-**Spec:** `specs/SPEC-013-accelerometer-motion-channel.md`
-**GitHub Release:** v0.4.0 ready to tag (live-validated). Stray `v0.4.2` tag (SC's version, mis-tagged here) deleted local+remote 2026-05-20.
+**Phase:** Two-axis mode classification (SPEC-014, 2026-06-20) — trajectory coherence wired into the classifier as an additive second axis, both engines + both replay frontends. v0.5.0 (unpushed at time of writing).
+**Latest work (2026-06-20):** The six modes were bins along one scalar (`calm_score`); `trajectory_coherence` was computed/logged/streamed but never reached the classifier, despite being orthogonal (corr +0.001 across 36 sessions / 15,909 records). Added soft membership over a 2-D (stillness × coherence) plane as additive `phase.soft_mode_2d` (5 provisional modes: reactive / engaged / transitional / constrained stillness / settled presence). 1-D path untouched. Both engines (`movement.py` / `movement.rs`, `phase.py` / `phase.rs`), live channels (WS `phase` msg + `ebs:phase` event carry `mode_score` + `soft_mode_2d`), and a "two-axis field" replay panel (`viz/js/modespace.js` + desktop copy). Schema: Python 1.2.0→1.4.0, Rust 1.4.0→1.5.0 (independent lineages). Tests: Python 135, Rust 62. Clean-context review (USDD P12) caught + fixed a cross-session `distribution_shift` reset-leak (both engines) and a viz warm-up mislabel. Commits `0e0ba12`, `cae4d87`, `71e7ee7`, `d3ffb92`.
+**Previous:** Signed phase-coupling channel (2026-05-23/25, `6827fd3`); accelerometer / motion channel (SPEC-013, v0.4.0, live-validated 2026-05-20); RAA-EBS-001 remediation (v0.2.1, 2026-02-24).
+**Key Result:** Coherence — the project's *coherence ≠ entrainment* key insight — is now in the classifier, not just logged. Ambiguity field de-saturates (1-D pinned 0.996 → 2-D 0.336–1.000). Finding: the corpus occupies a tiny clustered patch of the (calm × coherence) plane, so practical de-saturation is marginal where the data lives (mean ≈0.92) — the Muse S EEG third axis may open the space. Old "subtle alertness" splits 50% reactive / 45% transitional / 5% engaged; 21% of "settling" is actually constrained stillness (brittle).
+**Spec:** `specs/SPEC-014-two-axis-mode-classification.md` (status: implemented). Sketch: `docs/two-axis-mode-space-SKETCH.md`.
+**GitHub Release:** v0.5.0 ready to tag once pushed. (v0.4.0 + v0.4.1 already tagged.)
 **Next Steps:**
-- Tag v0.4.0 + cut GitHub release
-- Calibrate `MOTION_THRESHOLD_MG` (currently provisional 60mg) on labelled-activity sessions; current 50Hz capture aggregates 36–72 samples/tick
-- v0.2 follow-on: re-weight (not just annotate) the classifier on motion-confounded samples
-- Frontend: surface motion state + egress warning in the desktop UI (currently logged/emitted, not displayed)
+- Push `main` + tag v0.5.0 + cut GitHub release
+- **SPEC-014 Residue forks (Mat):** coherence-guard divergence (Python ≥8 states vs Rust ≥7 — published-adjacent, which is canonical?); schema-version discriminator (1.4.0 vs 1.5.0 for the same feature); single-source-of-truth dedupe for the 5 copies of centroids+temperature (P15 deferral)
+- Settle the provisional 2-D label vocabulary (research-vocabulary call); consider 2-D hysteresis; tune centroid spread / temperature for the populated region
+- Calibrate `MOTION_THRESHOLD_MG` (provisional 60mg) on labelled-activity sessions
+- Frontend: surface motion state + egress warning in the desktop UI (logged/emitted, not displayed)
 - P1-A deferred: cross-session RMSSD/SDNN aggregation (needs iOS schema migration)
 
 ---
@@ -40,7 +39,7 @@ See `concepts/entrainment-coherence-freedom.md` for full documentation.
 - `trajectory_coherence`: §3.2 (phase space trajectory integrity, 0–1)
 - `mode`: Domain-specific 6-centroid classification
 
-**Schema version:** 1.1.0 — movement-preserving classification with soft mode inference, hysteresis, and movement annotation. Sessions include `soft_mode`, `movement_annotation`, `movement_aware_label`, `mode_status`, `dwell_time`. Old sessions (v1.0.0) remain compatible but lack movement context.
+**Schema version:** Python **1.4.0** / Rust desktop **1.5.0** (independent lineages — same `soft_mode_2d` feature, different version string; detect by the field, not the version). The 1.1.0 movement-classification fields (`soft_mode`, `movement_annotation`, `movement_aware_label`, `mode_status`, `dwell_time`) and the 1.3.0 `motion` block (Rust) remain present and back-compatible; 1.4.0/1.5.0 adds the additive `phase.soft_mode_2d` (two-axis stillness × coherence). Old sessions remain valid and simply omit newer fields.
 
 ---
 ## Active Design Context
