@@ -318,21 +318,44 @@ may be the **entrainment ≠ coherence cut working as designed** — trajectory-
 is a genuinely different thing from rhythmic locking, and oscillation scoring low can
 *vindicate* the distinction. The conceptual direction is not in question.
 
-**What is genuinely open:** (a) the **instrument** may be a little off — centroid
-placement (upper centroids unreachable), the hardcoded 0.8 branch, possible
-operationalization narrowness (only catches drift-style integrity, lag-5 specific);
-(b) the **model** may be a little off — real data converging on the noise floor needs
-an account (is trajectory-integrity genuinely rare, or does the 3-D position encoding
-compress it?). **Both held open; neither confirmed.** This touches the cross-substrate
-coupling preprint's coherence axis — Mat drives any move here; nothing in published
-work changes on the basis of this note.
+**The reframe (felt-sense corrects the analyst's context labels).** The "settled"
+sessions probably weren't: Gem's bath was actually *stressful* (a child walked in
+complaining mid-bath); Mat's meditation was *brief*, and his own practice needs
+**30–40 min** to reach sustained settling. So the low coherence is most likely a
+*correct* reading of states that genuinely weren't coherent. **Coherence is the slow
+variable** (the journey / global integrity in the entrainment/coherence/freedom triad)
+— it has a *characteristic timescale*, and almost nothing in this corpus runs long
+enough to cross it. The noise-floor convergence is therefore most likely **corpus
+undersampling of the phenomenon**, not "no nervous system reaches coherence."
 
-**Next probes (cheap, non-destructive):** (1) feed the metric oscillations at varying
-period:lag ratios to map where rhythm vs drift crosses; (2) characterise the metric's
-output distribution under a library of canonical trajectories to see what "high
-coherence" *operationally* requires; (3) point the analysis at Mat's clean solo
-settled sessions (not bath, not dyadic) to remove the two confounds; (4) revisit
-centroid placement once the axis's real reachable range is known.
+**Three held-open layers, in leading order (none confirmed):**
+1. **Corpus undersampling** — short / mixed / interrupted sessions don't reach
+   *sustained* coherence (needs ~30–40 min and the right activity). Leading explanation.
+2. **Threshold / centroid tuning** — the brief, transient excursions that *do* occur
+   are real but the centroids miss them. Gem's bath held **~13s of genuine emerging
+   coherence** (11s ≥ 0.45, longest single excursion 23s ≥ 0.4, 23 excursions ≥ 0.35,
+   peak 0.50 over 18.6 min) — yet the `engaged` / `settled presence` centroids sit at
+   coherence 0.62 / 0.68, *above where real settling actually lands*, so a true
+   micro-settle is binned as transitional. Tune centroids to the band real excursions
+   occupy.
+3. **(secondary) Operationalization** — the metric may be a touch conservative
+   (hardcoded 0.8 degenerate branch; lag-5; catches drift-style integrity). But the
+   **entrainment ≠ coherence direction is NOT in question** — oscillation scoring low
+   is the cut working, since a smooth breathing rhythm *is* entrainment.
+
+**Validation design (the only thing that separates corpus-gap from instrument-error).**
+Phenomenologically-labelled **long-duration** sessions: the participant marks their own
+felt "settling now" (e.g. Mat at ~min 30 of a 40-min sit), and we test whether the
+metric's coherence rises in the self-reported window — the mutual-constraint check,
+felt sense ⇄ measurement validating each other. Multiple people; varied activities
+(meditation, exercise, long-duration). **This needs more data, not more analysis of the
+current corpus.**
+
+**Cheap interim probes:** (1) oscillation period:lag sweep to map where rhythm vs drift
+crosses; (2) relocate the 2-D coherence centroids to the band real excursions occupy
+(~0.4–0.5) and re-check REQ-014-4 de-saturation; (3) make the modes sensitive to brief
+excursions (a 13–23s settle should not read as noise). Publication-adjacent — nothing
+in published work changes on this note; Mat drives.
 
 ---
 
