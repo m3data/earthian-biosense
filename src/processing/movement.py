@@ -30,8 +30,10 @@ __all__ = [
     'HysteresisConfig',
     'ModeHistory',
     'MODE_CENTROIDS',
+    'MODE_CENTROIDS_2D',
     'DEFAULT_HYSTERESIS',
     'compute_soft_mode_membership',
+    'compute_2d_mode_membership',
     'detect_mode_with_hysteresis',
     'generate_movement_annotation',
     'detect_rupture_oscillation',
@@ -411,6 +413,119 @@ def compute_soft_mode_membership(
     ambiguity = 1.0 - (primary_weight - secondary_weight)
 
     # Compute distribution shift (KL divergence) if previous inference available
+    distribution_shift = None
+    if previous_inference is not None:
+        epsilon = 1e-10
+        kl = 0.0
+        for mode_name in membership:
+            p = membership[mode_name]
+            q = previous_inference.membership.get(mode_name, epsilon)
+            if p > epsilon:
+                kl += p * math.log((p + epsilon) / (q + epsilon))
+        distribution_shift = kl
+
+    return SoftModeInference(
+        membership=membership,
+        primary_mode=primary_mode,
+        secondary_mode=secondary_mode,
+        ambiguity=ambiguity,
+        distribution_shift=distribution_shift
+    )
+
+
+# =============================================================================
+# Two-Dimensional Mode Inference (stillness × trajectory coherence)
+# =============================================================================
+#
+# The 1-D ladder above bins a single scalar (calm_score). Trajectory coherence
+# (phase.compute_trajectory_coherence) is computed every tick, logged, and
+# streamed — but never reaches the classifier. It is empirically orthogonal to
+# calm_score (corr ≈ +0.001 across 36 sessions / 15,909 records), so it is free
+# independent information the 1-D label discards.
+#
+# This 2-D scheme places mode centroids in a (calm, coherence) plane and does
+# soft membership there. Both axes are 0-1; equal-weighted Euclidean distance
+# (no prior reason to privilege stillness over integrity in a first cut).
+#
+# PROVISIONAL label set — like the original "proto version" centroids, these are
+# tunable data, not settled research vocabulary. They name the four quadrants
+# (plus a transitional basin) using this repo's own concepts: constrained vs
+# permeable coherence, holding (alertness doing work) vs settling. Refine freely;
+# the machinery is the deliverable, the labels are placeholders.
+#
+#   calm →  low (activated)            high (settled)
+#   coh ↑   ┌──────────────────────────────────────────┐
+#   high    │ engaged                   settled presence│  (integrity)
+#           │ (flow / holding-doing-    (resting in      │
+#           │  work / rhythmic active)   attractor)      │
+#   low     │ reactive                  constrained      │  (fragmented)
+#           │ (scattered,               stillness        │
+#           │  dysregulated)            (brittle / freeze)│
+#           └──────────────────────────────────────────┘
+
+MODE_CENTROIDS_2D = {
+    'reactive':              {'calm': 0.15, 'coherence': 0.12},
+    'engaged':               {'calm': 0.30, 'coherence': 0.62},
+    'transitional':          {'calm': 0.45, 'coherence': 0.35},
+    'constrained stillness': {'calm': 0.72, 'coherence': 0.15},
+    'settled presence':      {'calm': 0.78, 'coherence': 0.68},
+}
+
+
+def compute_2d_mode_membership(
+    calm_score: float,
+    coherence: float,
+    temperature: float = 0.15,
+    previous_inference: Optional[SoftModeInference] = None
+) -> SoftModeInference:
+    """
+    Compute weighted membership over the 2-D (stillness × coherence) plane.
+
+    Mirrors compute_soft_mode_membership but over two genuinely orthogonal axes
+    instead of one collinear ladder. Because the centroids are spread in 2-D
+    rather than strung along a line, the ambiguity field de-saturates: it is low
+    near a centroid and high between centroids, instead of pinned near 1.
+
+    Args:
+        calm_score: Instantaneous stillness scalar (0-1, the calm_score axis)
+        coherence: Trajectory integrity (0-1, compute_trajectory_coherence)
+        temperature: Softmax temperature (lower = sharper, higher = softer)
+        previous_inference: Previous SoftModeInference for distribution shift
+
+    Returns:
+        SoftModeInference with membership weights across the 2-D modes
+    """
+    # Clamp inputs — both axes are defined on [0, 1]
+    calm = max(0.0, min(1.0, calm_score))
+    coh = max(0.0, min(1.0, coherence))
+
+    # Equal-weighted squared Euclidean distance to each centroid
+    distances = {}
+    for mode_name, centroid in MODE_CENTROIDS_2D.items():
+        dc = calm - centroid['calm']
+        dh = coh - centroid['coherence']
+        distances[mode_name] = dc * dc + dh * dh
+
+    # Softmax over negative distances (closer = higher weight)
+    max_neg_dist = max(-d for d in distances.values())  # numerical stability
+    exp_weights = {
+        mode_name: math.exp((-dist - max_neg_dist) / temperature)
+        for mode_name, dist in distances.items()
+    }
+    total = sum(exp_weights.values())
+    membership = {k: v / total for k, v in exp_weights.items()}
+
+    # Primary and secondary
+    sorted_modes = sorted(membership.items(), key=lambda x: x[1], reverse=True)
+    primary_mode = sorted_modes[0][0]
+    primary_weight = sorted_modes[0][1]
+    secondary_mode = sorted_modes[1][0] if len(sorted_modes) > 1 else None
+    secondary_weight = sorted_modes[1][1] if len(sorted_modes) > 1 else 0.0
+
+    # Ambiguity: high when top two are close (same definition as 1-D)
+    ambiguity = 1.0 - (primary_weight - secondary_weight)
+
+    # Distribution shift (KL divergence) from previous timestep, if available
     distribution_shift = None
     if previous_inference is not None:
         epsilon = 1e-10

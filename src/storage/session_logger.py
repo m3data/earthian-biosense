@@ -114,6 +114,26 @@ class SessionLogger:
                     }
                 }
 
+            # Add soft_mode_2d if available (stillness × coherence plane).
+            # Additive: only present once coherence is wired into the classifier.
+            # Full membership kept — the 2-D set is small (5 modes).
+            if getattr(dynamics, "soft_mode_2d", None):
+                sm2 = dynamics.soft_mode_2d
+                record["phase"]["soft_mode_2d"] = {
+                    "primary": sm2.primary_mode,
+                    "secondary": sm2.secondary_mode,
+                    "ambiguity": round(sm2.ambiguity, 4),
+                    "distribution_shift": round(sm2.distribution_shift, 6)
+                        if sm2.distribution_shift is not None else None,
+                    "membership": {
+                        k: round(v, 4) for k, v in sorted(
+                            sm2.membership.items(),
+                            key=lambda x: x[1],
+                            reverse=True
+                        )
+                    }
+                }
+
         # Add semiotic marker if received from Semantic Climate
         if self.pending_semiotic:
             record["semiotic"] = {

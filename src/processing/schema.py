@@ -5,7 +5,7 @@ can be identified and reprocessed if needed.
 """
 
 # Schema version - increment on breaking changes to session format
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.4.0"
 
 # NOTE ON ENGINE DIVERGENCE (2026-05-23): the Python and Rust desktop engines
 # have separate schema lineages. The Rust desktop reached 1.3.0 with the
@@ -14,6 +14,22 @@ SCHEMA_VERSION = "1.2.0"
 # engines. Unifying the two lineages is a tracked follow-up, not done here.
 #
 # Changelog:
+#
+# 1.4.0 (2026-06-20) - Two-axis mode classification (stillness × coherence)
+#   - New nested field in phase object:
+#     - soft_mode_2d: soft membership over a 2-D (calm_score × trajectory
+#       coherence) plane. Same shape as soft_mode (primary/secondary/ambiguity/
+#       distribution_shift/membership) over MODE_CENTROIDS_2D.
+#   - Why: trajectory_coherence was computed, logged, and streamed but never fed
+#     the classifier; it is orthogonal to calm_score (corr ≈ +0.001 across 36
+#     sessions). The 1-D ladder collapsed an entire axis. soft_mode_2d restores
+#     it; its ambiguity field de-saturates (the 1-D field was pinned near 0.99).
+#   - Additive and back-compatible: old sessions load unchanged; the 1-D mode /
+#     soft_mode fields are untouched. soft_mode_2d absent on pre-1.4.0 records.
+#   - NOTE: Python lineage jumps 1.2.0 -> 1.4.0. 1.3.0 is reserved for the Rust
+#     desktop's accelerometer motion channel (see engine-divergence note above),
+#     which this Python lineage has not adopted; reusing 1.3.0 here would make the
+#     same version string mean two different formats.
 #
 # 1.2.0 (2026-05-23) - Signed phase coupling
 #   - New JSONL field in metrics object:

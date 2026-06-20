@@ -178,6 +178,15 @@ class TerminalUI:
             # Compute trajectory coherence (global integrity metric)
             self.latest_coherence = self.trajectory.compute_trajectory_coherence()
 
+            # Two-axis classification: feed the (now-available) coherence into a
+            # 2-D mode scheme alongside the calm scalar. Additive — the 1-D mode
+            # above is untouched; this attaches soft_mode_2d to the same dynamics.
+            if self.latest_dynamics is not None:
+                self.latest_dynamics.soft_mode_2d = self.trajectory.compute_2d_mode(
+                    calm_score=self.latest_metrics.mode_score,
+                    coherence=self.latest_coherence,
+                )
+
             # Log to session file at 1Hz
             if self.logger:
                 self.logger.log(

@@ -24,6 +24,7 @@ from .movement import (
     SoftModeInference,
     ModeHistory,
     compute_soft_mode_membership,
+    compute_2d_mode_membership,
     detect_mode_with_hysteresis,
     generate_movement_annotation,
     compose_movement_aware_label,
@@ -68,6 +69,12 @@ class PhaseDynamics:
     # === Movement-preserving classification (v1.1.0) ===
     # Soft mode inference - weighted membership across modes
     soft_mode: Optional[SoftModeInference] = None
+
+    # === Two-axis classification (stillness × trajectory coherence) ===
+    # Soft membership over the 2-D plane. Set by PhaseTrajectory.compute_2d_mode
+    # once coherence is available (it's computed downstream of dynamics).
+    # Additive / back-compatible: None when coherence hasn't been wired in.
+    soft_mode_2d: Optional[SoftModeInference] = None
 
     # Movement annotation - HOW we arrived (e.g., "settling from heightened alertness")
     movement_annotation: str = ""
@@ -126,6 +133,7 @@ class PhaseTrajectory:
         # Movement-preserving classification state (v1.1.0)
         self.mode_history: ModeHistory = ModeHistory()
         self._last_soft_inference: Optional[SoftModeInference] = None
+        self._last_2d_inference: Optional[SoftModeInference] = None
         self._last_mode_score: float = 0.0
         self._mode_score_velocity: float = 0.0
 
@@ -493,3 +501,27 @@ class PhaseTrajectory:
         coherence = 0.5 * max(0.0, autocorr) + 0.5 * direction_coherence
 
         return max(0.0, min(1.0, coherence))
+
+    def compute_2d_mode(
+        self, calm_score: float, coherence: float
+    ) -> SoftModeInference:
+        """Soft membership over the 2-D (stillness × coherence) plane.
+
+        Call after compute_trajectory_coherence so the canonical coherence value
+        (the one logged and streamed) feeds the classifier. Threads the previous
+        2-D inference for distribution-shift continuity, mirroring the 1-D path.
+
+        Args:
+            calm_score: Instantaneous stillness scalar (metrics.mode_score)
+            coherence: Trajectory integrity from compute_trajectory_coherence
+
+        Returns:
+            SoftModeInference over MODE_CENTROIDS_2D
+        """
+        inference = compute_2d_mode_membership(
+            calm_score=calm_score,
+            coherence=coherence,
+            previous_inference=self._last_2d_inference,
+        )
+        self._last_2d_inference = inference
+        return inference

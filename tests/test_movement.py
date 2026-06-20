@@ -12,8 +12,10 @@ from src.processing.movement import (
     ModeHistory,
     HysteresisConfig,
     MODE_CENTROIDS,
+    MODE_CENTROIDS_2D,
     DEFAULT_HYSTERESIS,
     compute_soft_mode_membership,
+    compute_2d_mode_membership,
     detect_mode_with_hysteresis,
     generate_movement_annotation,
     detect_rupture_oscillation,
@@ -90,6 +92,87 @@ class TestSoftModeInference:
         assert len(result.membership) == 6
         for mode in MODE_CENTROIDS:
             assert mode in result.membership
+
+
+# =============================================================================
+# Two-Dimensional Mode Inference (stillness × coherence)
+# =============================================================================
+
+class TestTwoDimensionalModeMembership:
+    """Soft membership over a 2-D (calm/stillness × trajectory-coherence) plane.
+
+    The 1-D ladder bins a single calm_score; trajectory coherence is orthogonal
+    (corr ≈ +0.001 in real sessions) and never reaches the classifier. This adds
+    coherence as a genuine second axis so the four quadrants become nameable.
+    """
+
+    def test_membership_sums_to_one(self):
+        result = compute_2d_mode_membership(calm_score=0.4, coherence=0.4)
+        assert abs(sum(result.membership.values()) - 1.0) < 1e-6
+
+    def test_all_2d_modes_present(self):
+        result = compute_2d_mode_membership(calm_score=0.4, coherence=0.4)
+        assert len(result.membership) == len(MODE_CENTROIDS_2D)
+        for mode in MODE_CENTROIDS_2D:
+            assert mode in result.membership
+
+    def test_settled_coherent_is_settled_presence(self):
+        # high calm + high coherence = resting in attractor
+        r = compute_2d_mode_membership(calm_score=0.78, coherence=0.70)
+        assert r.primary_mode == 'settled presence'
+
+    def test_activated_fragmented_is_reactive(self):
+        # low calm + low coherence = scattered / dysregulated
+        r = compute_2d_mode_membership(calm_score=0.12, coherence=0.05)
+        assert r.primary_mode == 'reactive'
+
+    def test_activated_coherent_is_engaged(self):
+        # low calm + HIGH coherence: the cell the 1-D ladder calls "subtle
+        # alertness" regardless of coherence. Must be distinct from reactive.
+        r = compute_2d_mode_membership(calm_score=0.30, coherence=0.68)
+        assert r.primary_mode == 'engaged'
+
+    def test_settled_fragmented_is_constrained_stillness(self):
+        # high calm + low coherence = brittle stillness / freeze
+        r = compute_2d_mode_membership(calm_score=0.72, coherence=0.12)
+        assert r.primary_mode == 'constrained stillness'
+
+    def test_coherence_axis_bites(self):
+        """The core proof: holding calm fixed, varying coherence changes the
+        primary mode. If this fails, coherence isn't doing any work."""
+        low = compute_2d_mode_membership(calm_score=0.30, coherence=0.05)
+        high = compute_2d_mode_membership(calm_score=0.30, coherence=0.68)
+        assert low.primary_mode != high.primary_mode
+
+    def test_ambiguity_desaturated_at_centroid(self):
+        """The 1-D field is pinned at ~0.99 (six collinear centroids). A point
+        sitting on a 2-D centroid must be clearly less ambiguous than that."""
+        c = MODE_CENTROIDS_2D['settled presence']
+        r = compute_2d_mode_membership(calm_score=c['calm'], coherence=c['coherence'])
+        assert r.ambiguity < 0.7
+
+    def test_ambiguity_high_between_centroids(self):
+        """Midway between two far-apart centroids, the field should honestly
+        report high ambiguity — the property the saturated 1-D field can't."""
+        a = MODE_CENTROIDS_2D['reactive']
+        b = MODE_CENTROIDS_2D['settled presence']
+        mid_calm = (a['calm'] + b['calm']) / 2
+        mid_coh = (a['coherence'] + b['coherence']) / 2
+        r = compute_2d_mode_membership(calm_score=mid_calm, coherence=mid_coh)
+        assert r.ambiguity > 0.85
+
+    def test_distribution_shift_computed(self):
+        first = compute_2d_mode_membership(calm_score=0.2, coherence=0.2)
+        second = compute_2d_mode_membership(
+            calm_score=0.7, coherence=0.7, previous_inference=first
+        )
+        assert second.distribution_shift is not None
+        assert second.distribution_shift > 0
+
+    def test_inputs_clamped(self):
+        # out-of-range inputs must not break the softmax
+        r = compute_2d_mode_membership(calm_score=1.5, coherence=-0.2)
+        assert abs(sum(r.membership.values()) - 1.0) < 1e-6
 
     def test_upper_modes_reachable_at_default_temperature(self):
         """P0-B regression: all six modes must clear their entry thresholds.
