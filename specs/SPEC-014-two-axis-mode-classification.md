@@ -285,6 +285,57 @@ classifier math was confirmed at genuine four-way parity. It found bugs the gene
 
 ---
 
+## Research Questions (open — investigate, do not act on in published work)
+
+### RQ-SPEC014-1 — Is the under-occupied plane the instrument, the model, or the person?
+**Status: HELD OPEN (2026-06-20). Not confirmed either way. Publication-adjacent.**
+
+The plane is sparsely occupied (REQ-014-4 de-saturation is weak; `settled presence`
+reached ~2/15,909). Investigating *why*, three nervous systems across three contexts
+were compared, then the coherence metric itself was probed:
+
+- **Cross-person, context-controlled:** dyadic participants A (calm 0.36 / coh 0.28)
+  and B (0.34 / 0.26) occupy nearly the same patch (separation 0.031 vs within-spread
+  0.084) — but confounded (a dyadic *coupling* session, they may be co-regulating).
+- **Different person, settled context:** Gem-in-bath (iOS export `2026-06-17_011601`,
+  reprocessed) centres coherence 0.25, **maxes at 0.50, 0% of session ≥ 0.5** — though
+  the bath signal has RR artifacts (263–2898 ms) that depress trajectory coherence.
+- **The tell:** Mat solo (0.28), A (0.28), B (0.26), Gem (0.25) all centre on the
+  **random-walk noise floor (0.280)** measured by feeding the metric a random walk.
+- **Metric ceiling test** (synthetic known-integrity paths through
+  `compute_trajectory_coherence`): steady linear drift → 0.800 *(a hardcoded
+  `variance<1e-10 → 0.8` degenerate branch, not computed)*; smooth accelerating drift
+  → 0.746; **smooth breathing-like oscillation → 0.167 (below the noise floor)**;
+  random walk → 0.280. The metric rewards monotonic **drift** and scores rhythmic
+  **oscillation** at/below noise. The 2-D centroids place engaged/settled-presence at
+  coherence 0.62/0.68 — in territory only smooth drift reaches.
+
+**Critical interpretation (Mat) — do NOT read this as "the entrainment≠coherence
+direction is wrong":** a smooth breathing oscillation IS *entrainment* (breath-heart
+phase locking). The project's thesis is precisely that common usage mislabels
+entrainment as "coherence." So the metric scoring that oscillation at the noise floor
+may be the **entrainment ≠ coherence cut working as designed** — trajectory-integrity
+is a genuinely different thing from rhythmic locking, and oscillation scoring low can
+*vindicate* the distinction. The conceptual direction is not in question.
+
+**What is genuinely open:** (a) the **instrument** may be a little off — centroid
+placement (upper centroids unreachable), the hardcoded 0.8 branch, possible
+operationalization narrowness (only catches drift-style integrity, lag-5 specific);
+(b) the **model** may be a little off — real data converging on the noise floor needs
+an account (is trajectory-integrity genuinely rare, or does the 3-D position encoding
+compress it?). **Both held open; neither confirmed.** This touches the cross-substrate
+coupling preprint's coherence axis — Mat drives any move here; nothing in published
+work changes on the basis of this note.
+
+**Next probes (cheap, non-destructive):** (1) feed the metric oscillations at varying
+period:lag ratios to map where rhythm vs drift crosses; (2) characterise the metric's
+output distribution under a library of canonical trajectories to see what "high
+coherence" *operationally* requires; (3) point the analysis at Mat's clean solo
+settled sessions (not bath, not dyadic) to remove the two confounds; (4) revisit
+centroid placement once the axis's real reachable range is known.
+
+---
+
 ## Provenance
 
 - Sketch + data analysis: `Earthian-BioSense/docs/two-axis-mode-space-SKETCH.md`
