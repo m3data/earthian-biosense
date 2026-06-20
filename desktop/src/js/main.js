@@ -9,6 +9,7 @@
 import { CONFIG, getModeColor } from './config.js';
 import { createSketch2D } from './view2d.js';
 import { createSketch3D, computeDwellDensity } from './view3d.js';
+import { initModeSpace, setModeSpaceData } from './modespace.js';
 
 // === Tauri API ===
 const { invoke } = window.__TAURI__.core;
@@ -360,6 +361,10 @@ function updateUI() {
 
   document.getElementById('time-current').textContent = formatTime(elapsed);
   document.getElementById('time-total').textContent = formatTime(total);
+
+  // Two-axis mode field: current position + a recent trail (flows over points).
+  const trailStart = Math.max(0, idx - CONFIG.trail.length + 1);
+  setModeSpaceData(sample, state.sessionData.slice(trailStart, idx + 1));
 }
 
 function formatTime(seconds) {
@@ -485,6 +490,7 @@ function setupTauriListeners() {
       hr: data.hr,
       metrics: {
         mode: data.mode || '',
+        mode_score: data.mode_score != null ? data.mode_score : null,
         amp: data.amplitude || 50,
         breath: data.breath_rate || null,
         ent_label: data.entrainment_label || '',
@@ -499,6 +505,7 @@ function setupTauriListeners() {
         movement_annotation: data.movement_annotation || '',
         movement_aware_label: data.movement_aware_label || '',
         mode_status: data.mode_status || 'unknown',
+        soft_mode_2d: data.soft_mode_2d || null,
       }
     };
 
@@ -646,6 +653,7 @@ function setupEventHandlers() {
 setupTauriListeners();
 setupEventHandlers();
 initP5('2d');
+initModeSpace('modespace-canvas');
 loadSessionList();
 
 log('EarthianBioSense Desktop v0.1.0');

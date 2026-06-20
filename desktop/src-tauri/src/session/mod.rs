@@ -14,6 +14,7 @@ use std::time::SystemTime;
 use chrono::Local;
 
 use crate::hrv::HRVMetrics;
+use crate::hrv::movement::SoftModeInference;
 use crate::hrv::phase::PhaseDynamics;
 use crate::motion::MotionState;
 
@@ -121,7 +122,9 @@ impl SessionLogger {
         let mut header = json!({
             "type": "session_start",
             "ts": ts,
-            "schema_version": "1.4.0",
+            // 1.5.0: additive phase.soft_mode_2d (stillness × coherence membership).
+            // Rust lineage is independent of Python's (see Python schema.py note).
+            "schema_version": "1.5.0",
             "session_type": session_type,
             "note": "ent=entrainment (breath-heart sync), coherence=trajectory integrity"
         });
@@ -149,11 +152,33 @@ impl SessionLogger {
         metrics: &HRVMetrics,
         dynamics: &PhaseDynamics,
         coherence: f64,
+        soft_mode_2d: Option<&SoftModeInference>,
         motion: &MotionState,
     ) {
         let writer = match self.writer.as_mut() {
             Some(w) => w,
             None => return,
+        };
+
+        // Build soft_mode_2d object (stillness × coherence). Full membership —
+        // the 2-D set is small (5 modes). Additive; null on pre-1.5.0 callers.
+        let soft_mode_2d_json = match soft_mode_2d {
+            Some(sm) => {
+                let mut entries: Vec<(&String, &f64)> = sm.membership.iter().collect();
+                entries.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+                let membership: serde_json::Map<String, serde_json::Value> = entries
+                    .iter()
+                    .map(|(k, v)| ((*k).clone(), json!(r4(**v))))
+                    .collect();
+                json!({
+                    "primary": sm.primary_mode,
+                    "secondary": sm.secondary_mode,
+                    "ambiguity": r4(sm.ambiguity),
+                    "distribution_shift": sm.distribution_shift.map(|v| r4(v)),
+                    "membership": membership
+                })
+            }
+            None => json!(null),
         };
 
         // Build soft_mode object
@@ -207,6 +232,7 @@ impl SessionLogger {
                 "dwell_time": r2(dynamics.dwell_time),
                 "acceleration_mag": r4(dynamics.mode_score_acceleration),
                 "soft_mode": soft_mode_json,
+                "soft_mode_2d": soft_mode_2d_json,
                 "motion_confounded": motion.confounded
             },
             "motion": {

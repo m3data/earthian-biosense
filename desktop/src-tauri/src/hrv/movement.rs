@@ -370,6 +370,122 @@ pub fn compute_soft_mode_membership(
 }
 
 // =============================================================================
+// Two-Dimensional Mode Inference (stillness × trajectory coherence)
+// =============================================================================
+//
+// The 1-D ladder above bins a single scalar (calm_score). Trajectory coherence
+// (PhaseTrajectory::compute_trajectory_coherence) is computed every tick,
+// emitted, and logged — but never reaches the classifier. It is empirically
+// orthogonal to calm_score (corr ≈ +0.001 across 36 sessions / 15,909 records),
+// so it is free independent information the 1-D label discards.
+//
+// This 2-D scheme places mode centroids in a (calm, coherence) plane and does
+// soft membership there. Both axes are 0-1; equal-weighted Euclidean distance.
+// Mirrors the Python engine's MODE_CENTROIDS_2D / compute_2d_mode_membership.
+//
+// PROVISIONAL label set — tunable data, not settled research vocabulary. Names
+// the four quadrants (plus a transitional basin) using this repo's own concepts:
+// constrained vs permeable coherence, holding (alertness doing work) vs settling.
+
+const MODE_NAMES_2D: [&str; 5] = [
+    "reactive",
+    "engaged",
+    "transitional",
+    "constrained stillness",
+    "settled presence",
+];
+
+// [calm, coherence] per mode, same order as MODE_NAMES_2D.
+const MODE_CENTROID_VALUES_2D: [[f64; 2]; 5] = [
+    [0.15, 0.12], // reactive: activated + fragmented
+    [0.30, 0.62], // engaged: activated + coherent (flow / holding-doing-work)
+    [0.45, 0.35], // transitional: mid basin
+    [0.72, 0.15], // constrained stillness: settled + fragmented (brittle / freeze)
+    [0.78, 0.68], // settled presence: settled + permeable
+];
+
+/// Compute weighted membership over the 2-D (stillness × coherence) plane.
+///
+/// Mirrors `compute_soft_mode_membership` but over two genuinely orthogonal axes
+/// instead of one collinear ladder. Because the centroids are spread in 2-D
+/// rather than along a line, the ambiguity field de-saturates: low near a
+/// centroid, high between centroids, instead of pinned near 1.
+pub fn compute_2d_mode_membership(
+    calm_score: f64,
+    coherence: f64,
+    temperature: f64,
+    previous_inference: Option<&SoftModeInference>,
+) -> SoftModeInference {
+    let calm = calm_score.clamp(0.0, 1.0);
+    let coh = coherence.clamp(0.0, 1.0);
+    let position = [calm, coh];
+
+    // Equal-weighted squared Euclidean distance to each centroid.
+    let mut neg_dists = [0.0_f64; 5];
+    for (i, centroid) in MODE_CENTROID_VALUES_2D.iter().enumerate() {
+        let mut dist_sq = 0.0;
+        for j in 0..2 {
+            let diff = position[j] - centroid[j];
+            dist_sq += diff * diff;
+        }
+        neg_dists[i] = -dist_sq;
+    }
+
+    // Softmax with numerical stability.
+    let max_val = neg_dists.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let mut exp_weights = [0.0_f64; 5];
+    let mut total = 0.0;
+    for (i, &nd) in neg_dists.iter().enumerate() {
+        let w = ((nd - max_val) / temperature).exp();
+        exp_weights[i] = w;
+        total += w;
+    }
+
+    let mut membership = HashMap::with_capacity(5);
+    let mut best_idx = 0;
+    let mut best_weight = 0.0_f64;
+    let mut second_idx = 0;
+    let mut second_weight = 0.0_f64;
+
+    for (i, &w) in exp_weights.iter().enumerate() {
+        let normed = w / total;
+        membership.insert(MODE_NAMES_2D[i].to_string(), normed);
+        if normed > best_weight {
+            second_idx = best_idx;
+            second_weight = best_weight;
+            best_idx = i;
+            best_weight = normed;
+        } else if normed > second_weight {
+            second_idx = i;
+            second_weight = normed;
+        }
+    }
+
+    let ambiguity = 1.0 - (best_weight - second_weight);
+
+    let distribution_shift = previous_inference.map(|prev| {
+        let epsilon = 1e-10;
+        let mut kl = 0.0;
+        for name in &MODE_NAMES_2D {
+            let p = *membership.get(*name).unwrap_or(&epsilon);
+            let q = prev.membership.get(*name).copied().unwrap_or(epsilon);
+            if p > epsilon {
+                kl += p * ((p + epsilon) / (q + epsilon)).ln();
+            }
+        }
+        kl
+    });
+
+    SoftModeInference {
+        membership,
+        primary_mode: MODE_NAMES_2D[best_idx].to_string(),
+        secondary_mode: Some(MODE_NAMES_2D[second_idx].to_string()),
+        ambiguity,
+        distribution_shift,
+    }
+}
+
+// =============================================================================
 // Hysteresis-Aware Detection
 // =============================================================================
 
@@ -859,5 +975,85 @@ mod tests {
             second.distribution_shift.unwrap() > 0.0,
             "Large input change should produce positive KL divergence"
         );
+    }
+
+    // =========================================================================
+    // Two-Dimensional Mode Inference (stillness × coherence)
+    // =========================================================================
+
+    fn membership_sum(inf: &SoftModeInference) -> f64 {
+        inf.membership.values().sum()
+    }
+
+    #[test]
+    fn test_2d_membership_sums_to_one() {
+        let r = compute_2d_mode_membership(0.4, 0.4, 0.15, None);
+        assert!((membership_sum(&r) - 1.0).abs() < 1e-6);
+        assert_eq!(r.membership.len(), 5);
+    }
+
+    #[test]
+    fn test_2d_settled_coherent_is_settled_presence() {
+        let r = compute_2d_mode_membership(0.78, 0.70, 0.15, None);
+        assert_eq!(r.primary_mode, "settled presence");
+    }
+
+    #[test]
+    fn test_2d_activated_fragmented_is_reactive() {
+        let r = compute_2d_mode_membership(0.12, 0.05, 0.15, None);
+        assert_eq!(r.primary_mode, "reactive");
+    }
+
+    #[test]
+    fn test_2d_activated_coherent_is_engaged() {
+        // low calm + HIGH coherence: the cell the 1-D ladder calls "subtle
+        // alertness" regardless of coherence. Must be distinct from reactive.
+        let r = compute_2d_mode_membership(0.30, 0.68, 0.15, None);
+        assert_eq!(r.primary_mode, "engaged");
+    }
+
+    #[test]
+    fn test_2d_settled_fragmented_is_constrained_stillness() {
+        let r = compute_2d_mode_membership(0.72, 0.12, 0.15, None);
+        assert_eq!(r.primary_mode, "constrained stillness");
+    }
+
+    #[test]
+    fn test_2d_coherence_axis_bites() {
+        // The core proof: holding calm fixed, varying coherence changes the
+        // primary mode. If this fails, coherence isn't doing any work.
+        let low = compute_2d_mode_membership(0.30, 0.05, 0.15, None);
+        let high = compute_2d_mode_membership(0.30, 0.68, 0.15, None);
+        assert_ne!(low.primary_mode, high.primary_mode);
+    }
+
+    #[test]
+    fn test_2d_ambiguity_desaturated_at_centroid() {
+        // The 1-D field is pinned at ~0.99; a point on a 2-D centroid must be
+        // clearly less ambiguous than that.
+        let r = compute_2d_mode_membership(0.78, 0.68, 0.15, None);
+        assert!(r.ambiguity < 0.7);
+    }
+
+    #[test]
+    fn test_2d_ambiguity_high_between_centroids() {
+        // Midway between reactive (0.15,0.12) and settled presence (0.78,0.68).
+        let r = compute_2d_mode_membership((0.15 + 0.78) / 2.0, (0.12 + 0.68) / 2.0, 0.15, None);
+        assert!(r.ambiguity > 0.85);
+    }
+
+    #[test]
+    fn test_2d_distribution_shift() {
+        let first = compute_2d_mode_membership(0.2, 0.2, 0.15, None);
+        assert!(first.distribution_shift.is_none());
+        let second = compute_2d_mode_membership(0.7, 0.7, 0.15, Some(&first));
+        assert!(second.distribution_shift.is_some());
+        assert!(second.distribution_shift.unwrap() > 0.0);
+    }
+
+    #[test]
+    fn test_2d_inputs_clamped() {
+        let r = compute_2d_mode_membership(1.5, -0.2, 0.15, None);
+        assert!((membership_sum(&r) - 1.0).abs() < 1e-6);
     }
 }

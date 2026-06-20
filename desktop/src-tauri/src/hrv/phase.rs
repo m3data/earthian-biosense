@@ -11,7 +11,7 @@ use serde::Serialize;
 use super::HRVMetrics;
 use super::movement::{
     ModeHistory, SoftModeInference, compose_movement_aware_label,
-    compute_soft_mode_membership, detect_mode_with_hysteresis,
+    compute_2d_mode_membership, compute_soft_mode_membership, detect_mode_with_hysteresis,
     generate_movement_annotation,
 };
 
@@ -59,6 +59,7 @@ pub struct PhaseTrajectory {
     last_velocity: [f64; 3],
     mode_history: ModeHistory,
     last_soft_inference: Option<SoftModeInference>,
+    last_2d_inference: Option<SoftModeInference>,
     last_mode_score: f64,
     mode_score_velocity: f64,
 }
@@ -72,9 +73,27 @@ impl PhaseTrajectory {
             last_velocity: [0.0; 3],
             mode_history: ModeHistory::new(100),
             last_soft_inference: None,
+            last_2d_inference: None,
             last_mode_score: 0.0,
             mode_score_velocity: 0.0,
         }
+    }
+
+    /// Soft membership over the 2-D (stillness × coherence) plane.
+    ///
+    /// Call after `compute_trajectory_coherence` so the canonical coherence
+    /// value (the one emitted and logged) feeds the classifier. Threads the
+    /// previous 2-D inference for distribution-shift continuity, mirroring the
+    /// 1-D path and the Python engine.
+    pub fn compute_2d_mode(&mut self, calm_score: f64, coherence: f64) -> SoftModeInference {
+        let inference = compute_2d_mode_membership(
+            calm_score,
+            coherence,
+            0.15,
+            self.last_2d_inference.as_ref(),
+        );
+        self.last_2d_inference = Some(inference.clone());
+        inference
     }
 
     pub fn append(&mut self, metrics: &HRVMetrics, timestamp: f64) -> PhaseDynamics {

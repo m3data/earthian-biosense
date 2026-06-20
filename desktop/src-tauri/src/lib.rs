@@ -91,6 +91,8 @@ struct PhaseEvent {
     acceleration_mag: f64,
     // Soft mode (optional)
     soft_mode: Option<SoftModeEvent>,
+    // Two-axis mode field (stillness × coherence). None until coherence wired.
+    soft_mode_2d: Option<SoftModeEvent>,
     // Motion channel (SPEC-013)
     motion: MotionState,
 }
@@ -189,6 +191,11 @@ async fn cmd_connect(
                         .as_secs_f64();
                     let dynamics = trajectory.append(&metrics, now);
                     let coherence = trajectory.compute_trajectory_coherence(5);
+                    // Two-axis classification: feed the (now-available) coherence
+                    // into the 2-D scheme alongside the calm scalar. Additive —
+                    // the 1-D soft_mode above is untouched.
+                    let soft_mode_2d_inf =
+                        trajectory.compute_2d_mode(metrics.mode_score, coherence);
 
                     let ts = chrono::Local::now().to_rfc3339_opts(
                         chrono::SecondsFormat::Millis,
@@ -213,6 +220,21 @@ async fn cmd_connect(
                             membership: top3,
                         }
                     });
+
+                    // Build 2-D mode event (full membership — only 5 modes).
+                    let soft_mode_2d_event = {
+                        let membership: std::collections::HashMap<String, f64> = soft_mode_2d_inf
+                            .membership
+                            .iter()
+                            .map(|(k, v)| (k.clone(), (*v * 10000.0).round() / 10000.0))
+                            .collect();
+                        Some(SoftModeEvent {
+                            primary: soft_mode_2d_inf.primary_mode.clone(),
+                            secondary: soft_mode_2d_inf.secondary_mode.clone(),
+                            ambiguity: soft_mode_2d_inf.ambiguity,
+                            membership,
+                        })
+                    };
 
                     // Emit phase event to frontend
                     let event = PhaseEvent {
@@ -242,6 +264,7 @@ async fn cmd_connect(
                         dwell_time: dynamics.dwell_time,
                         acceleration_mag: dynamics.mode_score_acceleration,
                         soft_mode: soft_mode_event,
+                        soft_mode_2d: soft_mode_2d_event,
                         motion: motion_state.clone(),
                     };
                     handle.emit("ebs:phase", &event).ok();
@@ -274,6 +297,7 @@ async fn cmd_connect(
                                 &metrics,
                                 &dynamics,
                                 coherence,
+                                Some(&soft_mode_2d_inf),
                                 &motion_state,
                             );
                             if motion_state.range_egress_warning {
