@@ -198,6 +198,8 @@ class WebSocketServer:
         breath_rate: float | None = None,
         entrainment_label: str = "",
         phase_coupling: float = 0.0,
+        mode_score: float = 0.0,
+        soft_mode_2d: dict | None = None,
     ) -> dict:
         """Build the 1Hz phase-dynamics wire message.
 
@@ -224,6 +226,9 @@ class WebSocketServer:
             "breath_rate": round(breath_rate, 1) if breath_rate else None,
             "entrainment_label": entrainment_label,
             "phase_coupling": round(phase_coupling, 4),  # signed [-1,1]
+            "mode_score": round(mode_score, 4),  # instantaneous stillness (calm) axis
+            # 2-D mode membership (stillness × coherence). None until wired/available.
+            "soft_mode_2d": soft_mode_2d,
         }
 
     async def broadcast_phase(
@@ -243,6 +248,8 @@ class WebSocketServer:
         breath_rate: float | None = None,
         entrainment_label: str = "",
         phase_coupling: float = 0.0,
+        mode_score: float = 0.0,
+        soft_mode_2d: dict | None = None,
     ):
         """Broadcast phase dynamics to all connected clients (1Hz)."""
         if not self.clients:
@@ -251,6 +258,7 @@ class WebSocketServer:
             timestamp, hr, position, velocity, velocity_mag, curvature,
             stability, entrainment, phase_label, coherence, mode, amplitude,
             breath_rate, entrainment_label, phase_coupling,
+            mode_score, soft_mode_2d,
         )
 
         # Broadcast to all clients

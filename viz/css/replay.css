@@ -444,6 +444,44 @@ h1 {
   transform: translateY(0);
 }
 
+/* === Two-axis mode field panel === */
+#modespace-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 18px auto 8px;
+  max-width: 360px;
+}
+
+.modespace-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.modespace-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(180, 160, 135, 0.7);
+}
+
+.modespace-sub {
+  font-size: 10px;
+  line-height: 1.4;
+  max-width: 320px;
+  color: rgba(150, 140, 125, 0.55);
+}
+
+#modespace-canvas {
+  background: radial-gradient(ellipse at 50% 60%, #14131a 0%, #0c0c11 100%);
+  border: 1px solid rgba(180, 165, 145, 0.08);
+  border-radius: 10px;
+}
+
 #speed-controls {
   display: inline-flex;
   gap: 8px;

@@ -7,6 +7,7 @@
 import { CONFIG, getModeColor } from './config.js';
 import { createSketch2D } from './view2d.js';
 import { createSketch3D, computeDwellDensity } from './view3d.js';
+import { initModeSpace, setModeSpaceData } from './modespace.js';
 
 // === Application State ===
 const state = {
@@ -127,6 +128,10 @@ function updateUI() {
 
   document.getElementById('time-current').textContent = formatTime(elapsed);
   document.getElementById('time-total').textContent = formatTime(total);
+
+  // Two-axis mode field: current position + a recent trail (flows over points).
+  const trailStart = Math.max(0, idx - CONFIG.trail.length + 1);
+  setModeSpaceData(sample, state.sessionData.slice(trailStart, idx + 1));
 }
 
 function formatTime(seconds) {
@@ -292,6 +297,7 @@ function connectLive() {
         hr: data.hr,
         metrics: {
           mode: data.mode || '',
+          mode_score: data.mode_score != null ? data.mode_score : null,
           amp: data.amplitude || 50,
           breath: data.breath_rate || null,
           ent_label: data.entrainment_label || '',
@@ -301,7 +307,8 @@ function connectLive() {
           coherence: data.coherence || 0,
           stability: data.stability || 0.5,
           position: data.position || [0, 0.5, 0.5],
-          phase_label: data.phase_label || ''
+          phase_label: data.phase_label || '',
+          soft_mode_2d: data.soft_mode_2d || null
         }
       };
 
@@ -463,3 +470,4 @@ function setupEventHandlers() {
 // === Initialize ===
 setupEventHandlers();
 initP5('2d');
+initModeSpace('modespace-canvas');

@@ -215,7 +215,14 @@ class TerminalUI:
                     amplitude=self.latest_metrics.amplitude,
                     breath_rate=self.latest_metrics.breath_rate,
                     entrainment_label=self.latest_metrics.entrainment_label,
-                    phase_coupling=self.latest_metrics.phase_coupling
+                    phase_coupling=self.latest_metrics.phase_coupling,
+                    mode_score=self.latest_metrics.mode_score,
+                    soft_mode_2d=(
+                        self.latest_dynamics.soft_mode_2d.to_dict()
+                        if self.latest_dynamics
+                        and self.latest_dynamics.soft_mode_2d is not None
+                        else None
+                    ),
                 ))
 
         # Calculate stats
