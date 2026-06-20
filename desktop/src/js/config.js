@@ -204,6 +204,9 @@ export function getModeSpace2D(sample) {
   }
   const calm = sample.metrics ? sample.metrics.mode_score : null;
   const coh = sample.phase.coherence;
+  // coherence is exactly 0 only as the insufficient-data sentinel (warm-up,
+  // ~first 8 ticks). Suppress rather than paint the plane-origin as "reactive".
+  if (coh === 0) return null;
   return compute2DMembership(calm, coh);
 }
 

@@ -379,6 +379,7 @@ impl PhaseTrajectory {
         self.last_velocity = [0.0; 3];
         self.mode_history = ModeHistory::new(100);
         self.last_soft_inference = None;
+        self.last_2d_inference = None; // else first 2-D distribution_shift leaks across sessions
         self.last_mode_score = 0.0;
         self.mode_score_velocity = 0.0;
     }

@@ -418,6 +418,7 @@ class PhaseTrajectory:
         # Reset movement-preserving state (v1.1.0)
         self.mode_history.clear()
         self._last_soft_inference = None
+        self._last_2d_inference = None  # else first 2-D distribution_shift leaks across sessions
         self._last_mode_score = 0.0
         self._mode_score_velocity = 0.0
 
