@@ -19,7 +19,16 @@ use crate::hrv::phase::PhaseDynamics;
 use crate::motion::MotionState;
 
 /// Read `~/.ebs-bridge/current-session.json` and return `claude_session_id`
-/// iff the file exists, parses, and is less than 5 minutes old.
+/// iff the file exists, parses, and is fresh (within the liveness window).
+///
+/// SPEC-010 v0.2 (2026-07-04): the freshness window was 300s, which assumed the
+/// operator straps in within 5 min of the Claude session starting. In a long
+/// think-with the strap goes on when the work turns, so the file was stale and
+/// the link dropped. The `ebs-bridge-keepalive.sh` UserPromptSubmit hook now
+/// re-touches the file on every prompt, so an *active* conversation keeps it
+/// fresh; this window is widened to 900s only as a fallback covering pauses
+/// between prompts. SessionEnd still clears the file, so an ended session
+/// positively expires regardless of the window.
 ///
 /// See `Earthian-BioSense/specs/SPEC-010-vibe-harness-bridge.md`.
 fn read_bridge_claude_session_id() -> Option<String> {
@@ -29,7 +38,7 @@ fn read_bridge_claude_session_id() -> Option<String> {
     let meta = fs::metadata(&path).ok()?;
     let modified = meta.modified().ok()?;
     let age = SystemTime::now().duration_since(modified).ok()?;
-    if age.as_secs() > 300 {
+    if age.as_secs() > 900 {
         return None;
     }
 

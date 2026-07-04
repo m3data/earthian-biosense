@@ -1,7 +1,8 @@
 # SPEC-010 — EBS × vibe-harness Session Bridge
 
-**Status:** v0.1 draft, implementation in progress
+**Status:** v0.1 substantially implemented (hooks + read-side + `join_ebs_vibe.py` shipped); **v0.2 keep-alive amended 2026-07-04** after a live link-drop.
 **Created:** 2026-04-22
+**Amended:** 2026-07-04 — v0.2 liveness keep-alive (below)
 **Author:** Mat Mytka + Kairos
 **Scope:** Bridge between Claude Code / vibe-harness sessions and EBS desktop captures so paired biosignal + semantic-substrate data becomes joinable post-hoc without manual timestamp alignment.
 
@@ -102,7 +103,17 @@ Schema version bumps 1.1.0 → 1.2.0. Field is optional — sessions recorded wi
 
 Pattern follows `chimaera-start.sh` (bash, error-suppressed, fast).
 
-## v0.2 — auto-trigger (follow-on, not in this build)
+## v0.2 — Liveness keep-alive (strap-in-late fix, 2026-07-04)
+
+**Problem, found live.** The freshness gate (below) was the *only* mid-session liveness proxy, and the SessionStart hook writes `current-session.json` **once**. That assumes the operator straps in within the gate window of the conversation starting. In a long think-with the strap goes on *when the work turns* — tens of minutes in — so the file is stale and EBS records with **no** `claude_session_id`. Observed 2026-07-04: conversation started 14:47, EBS started 15:16 (29 min later); `desktop/sessions/2026-07-04_151636.jsonl` recorded unlinked. The gate protects against linking a *dead* prior session but can't tell "dead" from "alive, not yet strapped in."
+
+**Fix — heartbeat, don't just widen.** A `UserPromptSubmit` hook (`.claude/hooks/ebs-bridge-keepalive.sh`) re-touches `current-session.json` on every prompt (mtime only; `claude_session_id` + `start_ts` preserved). While the conversation is actively prompting the file stays fresh, so the operator can strap in at any point and the link lands. SessionEnd still clears the file, so an ended session positively expires — the freshness gate degrades from primary mechanism to crash-safety fallback, and is widened **300s → 900s** (`session/mod.rs`) to cover pauses between prompts.
+
+**Why heartbeat over gate-removal (ADR-010-2).** Removing the gate re-links stale/dead sessions (strap on tomorrow, inherit yesterday's id); widening alone trades one silent-mislink for another. A heartbeat makes "current" *mean* current — fresh iff a conversation is live — the semantics the filename already claims. Cost: one file-touch per turn, no new state. The keep-alive MUST NOT mutate `claude_session_id` or `start_ts` (start_ts is the true session start, used by the join window).
+
+**Consequence for the running binary.** The gate + read-side live in the Tauri Rust; a deployed binary predating them (e.g. the schema-1.3.0 build in use on 2026-07-04) links nothing regardless of bridge freshness. A fresh `cargo tauri build` is required for the read-side to exist at all.
+
+## v0.3 — auto-trigger (follow-on, not in this build)
 
 Once v0.1 proves the labelling + join works, layer automation:
 - Tauri app watches `~/.ebs-bridge/current-session.json`; when file appears fresh with `auto_start: true`, invokes `cmd_start_session` internally
@@ -112,7 +123,7 @@ Once v0.1 proves the labelling + join works, layer automation:
 
 ## Open questions
 
-- Does Claude Code SessionStart hook actually pass `session_id` via stdin? Hook is written defensively (use if present, generate if not) so build proceeds either way; field is verified empirically by logging stdin of first live hook firing.
+- ~~Does Claude Code SessionStart hook actually pass `session_id` via stdin?~~ **RESOLVED (2026-07-04): yes.** The live bridge file carries the real Claude UUID (`66da2635-…`), not the `bridge-<ts>` fallback — SessionStart stdin includes `session_id` and the hook extracts it correctly.
 - vibe-harness already stamps its own `session_id` into mode-history entries; we intentionally do not unify the two IDs — our `claude_session_id` is bridge-generated, vibe-harness's `session_id` is its own. Join is by time window, not ID. Report can surface both for cross-reference.
 - Sub-second timestamp precision on mode-history — current observations are second-level; fine for v0.1 window-based join, may need upgrade if transition-moment analysis becomes central.
 
@@ -124,3 +135,8 @@ Once v0.1 proves the labelling + join works, layer automation:
 4. `join_ebs_vibe.py` against a paired session produces a report with mode-labelled biosignal trajectories
 
 Once all four hold on one live session, v0.1 is done. Ritual/rhythm capture cadence decisions are downstream.
+
+## Acceptance for v0.2
+
+5. With the keep-alive hook installed and a **rebuilt** desktop binary, an EBS session started >5 min after conversation start (while prompting continues) records the correct `claude_session_id`. The 2026-07-04 unlinked session (`desktop/sessions/2026-07-04_151636.jsonl`) is the regression case to beat.
+6. `scripts/join_ebs_transcript.py <ebs_session>` aligns biosignal samples to conversation turns by shared wall-clock and emits a per-turn somatic table (proven read-only against the 2026-07-04 pair before the keep-alive shipped).
