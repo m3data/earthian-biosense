@@ -41,3 +41,14 @@ desktop/src-tauri/icons/StoreLogo.png
 CLAUDE.md
 context/
 claude-dev/
+
+# ── Biometric data policy ──────────────────────────────────────────────────
+# Session logs and raw recordings stay local. Self-experiment data MAY be included by
+# explicit per-case decision (e.g. supporting a publication) — this is a judgement call,
+# not a ban. What does NOT belong here regardless: device serials and BLE addresses
+# (persistent identifiers), and session logs (intimate). This repo is PUBLIC and git
+# history is permanent. Derived and aggregate statistics doing evidentiary work are
+# fine and belong here.
+tests/fixtures/muse_athena/*.jsonl
+tests/fixtures/muse_athena/*.npz
+tests/fixtures/**/*_eeg.jsonl
