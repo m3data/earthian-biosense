@@ -3,6 +3,27 @@
 All notable changes to EarthianBioSense are documented here.
 Versioning is semantic; dates are ISO-8601.
 
+## [0.6.0] — 2026-09-04
+
+### Added — BLE auto-reconnect (SPEC-009 REQ-005)
+
+REQ-005 had been carried unimplemented from the Python client into the Tauri
+port. Observed live 2026-09-04: the operator walked out of range with the strap
+on, the last sample landed at 12:54:25, and the session file stayed silent after
+they returned because nothing attempted to reconnect. This release closes that.
+
+- **Detection by watchdog** (`desktop/src-tauri/src/ble/reconnect.rs`) — the H10 notifies HR at ~1 Hz; no HR notification for `LINK_WATCHDOG = 5 s` ⇒ link lost. Independent of CoreBluetooth's own disconnect signalling, which can lag by many seconds.
+- **Reconnect cycle** (`lib.rs`) — exponential back-off 1, 2, 4, 8, 16 s then every 30 s; each attempt clones the adapter handle out of `AppState` and releases the lock before any BLE await, re-looks-up the peripheral, rescans for 2 s if the adapter no longer lists it, tears down a stale CoreBluetooth link if the OS still believes it connected, and re-subscribes HR + PMD ACC. One attempt is bounded at 20 s; on expiry a bounded (3 s) best-effort `disconnect()` teardown runs. `cmd_disconnect` cancels the cycle immediately — stop wins mid-back-off and mid-attempt; no attempt runs after stop.
+- **One live stream at a time** — every notification listener carries a generation flag (`StreamAlive`, an `Arc<AtomicBool>`). The previous generation is retired at link-lost detection, before any attempt; a retired listener discards anything it still receives (HR and ACC) and exits, so a stale link can neither duplicate samples nor keep the watchdog alive.
+- **Connection generations** — `cmd_connect` mints a monotonically increasing generation in `AppState`; the processing task emits its terminal `ebs:device-status` and runs attempt-timeout teardown only while it still owns the current generation, so an old task can never overwrite a newer connection's UI state or disconnect its peripheral. Every channel message carries a per-stream sub-generation (incremented on each successful reconnect); the loop discards messages from any other generation, so a notification queued by a retired listener is never consumed as fresh. The shared ACC buffer is cleared on reconnect success.
+- **Disconnect awaits the task** — `cmd_disconnect` sends stop, then awaits the processing task's `JoinHandle` (bounded, 5 s) before clearing `active`, so disconnect→immediate connect never overlaps a task still tearing down. `cmd_connect` and `cmd_disconnect` hold a lifecycle mutex for their whole body, so concurrent lifecycle commands serialise (a second disconnect waits, finds nothing to stop, returns Ok). Attempt-timeout teardown is `select!`ed against stop and abandoned once stop fires.
+- **Supervision** — a single deadline `supervision_deadline(last_sample_at, reconnected_at)`: last sample + 5 s when a sample exists (link lost → `ble_link_lost`, cycle); reconnect + `ESTABLISH_TIMEOUT` 10 s when a reconnected stream has produced no HR sample yet (attempt deemed failed after the fact, cycle resumes with the next back-off, **no second `ble_link_lost`**, no new `connected:false`); unarmed on the initial connect before the first sample (pre-existing behaviour, residue). Reconnect success never re-arms the sample watchdog with a fabricated sample.
+- **Two JSONL `field_event`s, written to the same session file** — `ble_link_lost` at detection with `last_sample_ts` (RFC 3339 of the last HR sample) and `watchdog_secs`; `ble_reconnect` on the first HR sample of the restored stream (not at `connect()`) with `gap_ms` (last sample → that first sample) and `attempts` — exactly one per `ble_link_lost`; an attempt that connected but never produced a sample writes nothing. `ble:reconnected` fires at the same moment. The session continues across the gap; no new file, no `stop_session`/`start_session`. `SessionLogger::log_field_event_with` merges structured fields beside `note` and never lets them override `type`/`ts`/`event`/`note`.
+- **IPC** — `ebs:device-status` gains an additive boolean `reconnecting` (CON-002): `connected:false, reconnecting:true` at detection, `connected:true, reconnecting:false` only on the first HR sample of the new stream (never at `connect()`, so a reconnect that never produces a sample never shows green), `connected:false, reconnecting:false` when the relay stops on user disconnect. The UI derives the status dot from this one event (amber = `!connected && reconnecting`); `ble:reconnecting {attempt, delay_secs, since_ts}` and `ble:reconnected {gap_ms, attempts}` are informational log lines.
+- **Schema** — unchanged at **1.5.0** (additive: two new `event` names; readers that know only `type`/`event`/`note` still parse them; detect by `event`, not version).
+
+Tests: Rust 79 passed (62 + 17 new: TEST-005a–g). The btleplug wiring is exercised live (walk to the kitchen and back), not by unit test.
+
 ## [0.5.0] — 2026-06-20
 
 ### Added — Two-axis mode classification (SPEC-014)

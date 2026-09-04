@@ -33,6 +33,7 @@ const state = {
   // Device state
   selectedDevice: null,
   isConnected: false,
+  isReconnecting: false,
   isSessionActive: false,
 
   // Dyadic session state
@@ -155,6 +156,7 @@ async function disconnectDevice() {
     log('Disconnected');
     setConnectionStatus('idle');
     state.isConnected = false;
+    state.isReconnecting = false;
     state.isLive = false;
 
     document.getElementById('session-controls').classList.add('hidden');
@@ -534,15 +536,28 @@ function setupTauriListeners() {
     if (contactEl) contactEl.textContent = data.sensor_contact ? 'Yes' : 'No';
   });
 
-  // Listen for device status events
+  // Listen for device status events. This is the single authority for the
+  // status dot (SPEC-009 REQ-005 v0.2 §3 / CON-002): amber iff
+  // `!connected && reconnecting`; never derived from the ordering of two events.
   listen('ebs:device-status', (event) => {
     const data = event.payload;
-    if (data.connected) {
-      setConnectionStatus('connected');
-    } else {
-      setConnectionStatus('idle');
-    }
-    log(`Device ${data.device}: ${data.connected ? 'connected' : 'disconnected'}`);
+    state.isReconnecting = !data.connected && !!data.reconnecting;
+    setConnectionStatus(
+      data.connected ? 'connected' : (data.reconnecting ? 'reconnecting' : 'idle')
+    );
+    log(`Device ${data.device}: ${data.connected ? 'connected' : (data.reconnecting ? 'link lost, reconnecting' : 'disconnected')}`);
+  });
+
+  // BLE auto-reconnect (SPEC-009 REQ-005) — informational log lines only;
+  // the dot is owned by `ebs:device-status` above.
+  listen('ble:reconnecting', (event) => {
+    const { attempt, delay_secs } = event.payload;
+    log(`Link lost — reconnecting (attempt ${attempt}, next in ${delay_secs}s)`);
+  });
+
+  listen('ble:reconnected', (event) => {
+    const { gap_ms, attempts } = event.payload;
+    log(`Reconnected after ${gap_ms} ms (${attempts} attempts)`);
   });
 }
 

@@ -5,12 +5,14 @@
 //! tied to the adapter instance that discovered them.
 
 pub mod parser;
+pub mod reconnect;
 pub mod registry;
 
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::StreamExt;
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -40,6 +42,18 @@ const PMD_START_ACC: [u8; 14] = [
 /// HR tick by the processing loop in lib.rs.
 pub type AccBuffer = Arc<Mutex<Vec<[i16; 3]>>>;
 
+/// One HR notification as delivered to the processing loop: participant
+/// label, parsed data, and the *stream generation* of the listener that
+/// produced it (REQ-005 §9). The loop discards messages whose generation is
+/// not its current one.
+pub type HrMessage = (String, HeartRateData, u64);
+
+/// Generation flag for a notification listener (SPEC-009 REQ-005 §6). The
+/// owner stores `false` to retire the listener; a retired listener discards
+/// everything it still receives and exits, so a stale link can neither
+/// duplicate samples nor keep the watchdog alive.
+pub type StreamAlive = Arc<AtomicBool>;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DiscoveredDevice {
     pub name: String,
@@ -54,6 +68,9 @@ pub struct DeviceStatus {
     pub connected: bool,
     pub battery: Option<u8>,
     pub strap: Option<String>,
+    /// SPEC-009 REQ-005 v0.2 (CON-002, additive): true only while a reconnect
+    /// cycle is running after a watchdog-detected link loss.
+    pub reconnecting: bool,
 }
 
 /// Create and return the first available Bluetooth adapter.
@@ -152,15 +169,116 @@ async fn read_battery(peripheral: &Peripheral) -> Option<u8> {
 ///
 /// Uses the shared adapter so the peripheral from the scan is still available.
 /// Sends parsed HeartRateData through the provided channel.
+///
+/// Returns the status and the generation flag of the spawned listener; store
+/// `false` into the flag to retire that listener (REQ-005 §6).
 pub async fn connect_and_stream(
     adapter: &Adapter,
     address: String,
-    tx: mpsc::UnboundedSender<(String, HeartRateData)>,
+    tx: mpsc::UnboundedSender<HrMessage>,
     label: String,
     acc_buffer: AccBuffer,
-) -> Result<DeviceStatus, String> {
+    gen: u64,
+) -> Result<(DeviceStatus, StreamAlive), String> {
     let peripheral = find_peripheral(adapter, &address).await?;
+    let alive: StreamAlive = Arc::new(AtomicBool::new(true));
+    let status =
+        stream_from_peripheral(peripheral, address, tx, label, acc_buffer, alive.clone(), gen).await?;
+    Ok((status, alive))
+}
 
+/// Best-effort, bounded teardown of a peripheral by address (REQ-005 §7):
+/// used after a reconnect attempt times out so no half-connected peripheral
+/// is left behind. Every error is swallowed; the whole thing is capped at 3 s.
+pub async fn teardown_peripheral(adapter: &Adapter, address: &str) {
+    let fut = async {
+        if let Ok(p) = find_peripheral(adapter, address).await {
+            if let Err(e) = p.disconnect().await {
+                log::warn!("Teardown disconnect of {} failed: {}", address, e);
+            }
+        }
+    };
+    if tokio::time::timeout(Duration::from_secs(3), fut).await.is_err() {
+        log::warn!("Teardown of {} timed out", address);
+    }
+}
+
+/// Short rescan used when the adapter no longer lists a device we want to
+/// reconnect to (SPEC-009 REQ-005 §5). Starts and stops the scan around a
+/// fixed window, then looks the address up again.
+pub async fn rescan_for_peripheral(
+    adapter: &Adapter,
+    address: &str,
+    window: Duration,
+) -> Result<Peripheral, String> {
+    adapter
+        .start_scan(ScanFilter::default())
+        .await
+        .map_err(|e| format!("Failed to start rescan: {}", e))?;
+    tokio::time::sleep(window).await;
+    adapter
+        .stop_scan()
+        .await
+        .map_err(|e| format!("Failed to stop rescan: {}", e))?;
+    find_peripheral(adapter, address).await
+}
+
+/// One reconnect attempt (SPEC-009 REQ-005). Differs from
+/// [`connect_and_stream`] in two ways:
+///
+/// 1. If the adapter no longer lists the device, a short rescan (`rescan`)
+///    is run and the lookup retried once within the same attempt.
+/// 2. If CoreBluetooth still believes the peripheral is connected (the
+///    watchdog fires well before the OS reports a disconnect), the stale
+///    link is torn down first. A failure here is tolerated: the caller has
+///    already retired the previous listener's generation flag (§6), so a
+///    lingering stale stream is discarded rather than duplicated.
+///
+/// Returns the status and the new listener's generation flag.
+pub async fn reconnect_and_stream(
+    adapter: &Adapter,
+    address: String,
+    tx: mpsc::UnboundedSender<HrMessage>,
+    label: String,
+    acc_buffer: AccBuffer,
+    rescan: Duration,
+    gen: u64,
+) -> Result<(DeviceStatus, StreamAlive), String> {
+    let peripheral = match find_peripheral(adapter, &address).await {
+        Ok(p) => p,
+        Err(e) => {
+            log::info!("{}; rescanning for {:?}", e, rescan);
+            rescan_for_peripheral(adapter, &address, rescan).await?
+        }
+    };
+
+    if peripheral.is_connected().await.unwrap_or(false) {
+        log::info!("Peripheral {} still marked connected; tearing down stale link", address);
+        if let Err(e) = peripheral.disconnect().await {
+            log::warn!("Stale-link disconnect failed: {} (continuing)", e);
+        }
+    }
+
+    let alive: StreamAlive = Arc::new(AtomicBool::new(true));
+    let status =
+        stream_from_peripheral(peripheral, address, tx, label, acc_buffer, alive.clone(), gen).await?;
+    Ok((status, alive))
+}
+
+/// Connect an already-located peripheral, subscribe to HR (+ PMD ACC), and
+/// spawn the notification listener. Shared by first connect and reconnect.
+/// The listener checks `alive` on every notification and exits once retired,
+/// and tags every HR message with `gen` (REQ-005 §9).
+#[allow(clippy::too_many_arguments)]
+async fn stream_from_peripheral(
+    peripheral: Peripheral,
+    address: String,
+    tx: mpsc::UnboundedSender<HrMessage>,
+    label: String,
+    acc_buffer: AccBuffer,
+    alive: StreamAlive,
+    gen: u64,
+) -> Result<DeviceStatus, String> {
     peripheral
         .connect()
         .await
@@ -223,6 +341,7 @@ pub async fn connect_and_stream(
         connected: true,
         battery,
         strap: None, // filled by caller from registry
+        reconnecting: false,
     };
 
     // Spawn notification listener
@@ -234,9 +353,14 @@ pub async fn connect_and_stream(
 
     tokio::spawn(async move {
         while let Some(notification) = notification_stream.next().await {
+            if !alive.load(Ordering::Relaxed) {
+                // Retired generation (REQ-005 §6): discard HR and ACC, exit.
+                log::info!("Notification listener for {} retired; exiting", label);
+                break;
+            }
             if notification.uuid == HR_MEASUREMENT_UUID {
                 if let Some(hr_data) = parse_heart_rate_measurement(&notification.value) {
-                    if tx.send((stream_label.clone(), hr_data)).is_err() {
+                    if tx.send((stream_label.clone(), hr_data, gen)).is_err() {
                         log::info!("HR data channel closed, stopping stream");
                         break;
                     }
@@ -255,4 +379,25 @@ pub async fn connect_and_stream(
     });
 
     Ok(status)
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::*;
+
+    // TEST-005f — CON-002 carries one authoritative `reconnecting` flag.
+    #[test]
+    fn device_status_serialises_reconnecting_flag_default_false() {
+        let st = DeviceStatus {
+            device: "A".into(),
+            name: "Polar H10 TEST".into(),
+            connected: false,
+            battery: None,
+            strap: None,
+            reconnecting: false,
+        };
+        let v: serde_json::Value = serde_json::to_value(&st).unwrap();
+        assert_eq!(v["reconnecting"], serde_json::json!(false));
+        assert_eq!(v["connected"], serde_json::json!(false));
+    }
 }

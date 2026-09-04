@@ -261,20 +261,36 @@ impl SessionLogger {
     }
 
     pub fn log_field_event(&mut self, event: &str, note: &str) {
+        self.log_field_event_with(event, note, &json!({}));
+    }
+
+    /// Like [`log_field_event`] but merges `extra` (an object) into the record,
+    /// so structured facts (e.g. `gap_ms`) travel beside the human `note`.
+    /// SPEC-009 REQ-005. Keys owned by the logger (`type`, `ts`, `event`,
+    /// `note`) are never overridden by `extra`.
+    pub fn log_field_event_with(&mut self, event: &str, note: &str, extra: &Value) {
         let writer = match self.writer.as_mut() {
             Some(w) => w,
             None => return,
         };
 
         let ts = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
-        let record = json!({
-            "type": "field_event",
-            "ts": ts,
-            "event": event,
-            "note": note
-        });
+        let mut record = serde_json::Map::new();
+        if let Some(obj) = extra.as_object() {
+            for (k, v) in obj {
+                if matches!(k.as_str(), "type" | "ts" | "event" | "note") {
+                    continue;
+                }
+                record.insert(k.clone(), v.clone());
+            }
+        }
+        // Logger-owned keys are written last so they always win.
+        record.insert("type".into(), json!("field_event"));
+        record.insert("ts".into(), json!(ts));
+        record.insert("event".into(), json!(event));
+        record.insert("note".into(), json!(note));
 
-        if let Ok(line) = serde_json::to_string(&record) {
+        if let Ok(line) = serde_json::to_string(&Value::Object(record)) {
             writeln!(writer, "{}", line).ok();
             writer.flush().ok();
         }
@@ -357,4 +373,83 @@ pub fn list_sessions(session_dir: &Path) -> Vec<SessionFileInfo> {
     // Sort by filename descending (most recent first)
     files.sort_by(|a, b| b.filename.cmp(&a.filename));
     files
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn tmp_dir(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("ebs-session-test-{}-{}", tag, std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn lines(path: &Path) -> Vec<Value> {
+        fs::read_to_string(path)
+            .unwrap()
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect()
+    }
+
+    // TEST-005e — the ble_reconnect field event lands in the SAME session
+    // file (no new file), with structured fields beside the note.
+    #[test]
+    fn structured_field_event_is_written_to_the_active_session_file() {
+        let dir = tmp_dir("reconnect");
+        let mut logger = SessionLogger::new(&dir);
+        let path = logger.start_session("solo").unwrap();
+
+        logger.log_field_event_with(
+            "ble_reconnect",
+            "link restored after 3 attempts",
+            &json!({"gap_ms": 4200, "attempts": 3}),
+        );
+
+        let recs = lines(&path);
+        assert_eq!(recs.len(), 2, "header + one field event");
+        let ev = &recs[1];
+        assert_eq!(ev["type"], json!("field_event"));
+        assert_eq!(ev["event"], json!("ble_reconnect"));
+        assert_eq!(ev["note"], json!("link restored after 3 attempts"));
+        assert_eq!(ev["gap_ms"], json!(4200));
+        assert_eq!(ev["attempts"], json!(3));
+        assert!(ev["ts"].is_string());
+        assert!(logger.is_active(), "a link event must not end the session");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1, "no second file");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn structured_field_event_cannot_override_logger_owned_keys() {
+        let dir = tmp_dir("owned");
+        let mut logger = SessionLogger::new(&dir);
+        let path = logger.start_session("solo").unwrap();
+        logger.log_field_event_with(
+            "ble_link_lost",
+            "watchdog",
+            &json!({"type": "sample", "event": "spoof", "note": "spoof", "ts": "1970", "x": 1}),
+        );
+        let ev = &lines(&path)[1];
+        assert_eq!(ev["type"], json!("field_event"));
+        assert_eq!(ev["event"], json!("ble_link_lost"));
+        assert_eq!(ev["note"], json!("watchdog"));
+        assert_ne!(ev["ts"], json!("1970"));
+        assert_eq!(ev["x"], json!(1));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn structured_field_event_is_a_noop_without_active_session() {
+        let dir = tmp_dir("inactive");
+        let mut logger = SessionLogger::new(&dir);
+        logger.log_field_event_with("ble_link_lost", "x", &json!({"a": 1}));
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
