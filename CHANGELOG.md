@@ -3,6 +3,17 @@
 All notable changes to EarthianBioSense are documented here.
 Versioning is semantic; dates are ISO-8601.
 
+## [0.6.1] — 2026-09-04
+
+### Fixed — tick-raised field events carry the tick's timestamp (SPEC-009 REQ-005 v0.3)
+
+`ble_reconnect` and `range_egress_warning` were stamped with a fresh `Local::now()`
+a few ms after the sample they precede in the file (observed: event 14:05:13.051
+before sample 14:05:13.050). A downstream monotonic reader (vibe-harness-mcp
+SPEC-003) saw a 1 ms backward clock step at every reconnect. Both events now use
+the tick's own `ts` via `SessionLogger::log_field_event_at`. `ble_link_lost`
+keeps detection time. Tests: Rust 80.
+
 ## [0.6.0] — 2026-09-04
 
 ### Added — BLE auto-reconnect (SPEC-009 REQ-005)

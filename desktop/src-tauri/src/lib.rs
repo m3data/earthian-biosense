@@ -300,7 +300,8 @@ async fn cmd_connect(
                         let state = handle.state::<AppState>();
                         let mut logger = state.session_logger.lock().await;
                         if logger.is_active() {
-                            logger.log_field_event_with(
+                            logger.log_field_event_at(
+                                &ts,
                                 "ble_reconnect",
                                 &format!("link restored after {} ms ({} attempts)", gap, attempt),
                                 &reconnect::reconnect_fields(gap, attempt),
@@ -408,13 +409,15 @@ async fn cmd_connect(
                                 &motion_state,
                             );
                             if motion_state.range_egress_warning {
-                                logger.log_field_event(
+                                logger.log_field_event_at(
+                                    &ts,
                                     "range_egress_warning",
                                     &format!(
                                         "motion_mag={:.1} sustained_ticks={}",
                                         motion_state.motion_mag,
                                         motion_state.sustained_moving_ticks
                                     ),
+                                    &serde_json::json!({}),
                                 );
                             }
                         }

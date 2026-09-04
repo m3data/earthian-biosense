@@ -269,12 +269,21 @@ impl SessionLogger {
     /// SPEC-009 REQ-005. Keys owned by the logger (`type`, `ts`, `event`,
     /// `note`) are never overridden by `extra`.
     pub fn log_field_event_with(&mut self, event: &str, note: &str, extra: &Value) {
+        let ts = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
+        self.log_field_event_at(&ts, event, note, extra);
+    }
+
+    /// Like [`log_field_event_with`] but with an explicit `ts`. Events raised
+    /// *from a tick* (ble_reconnect, range_egress_warning) must carry that
+    /// tick's `ts`: a fresh `Local::now()` lands a few ms later than the sample
+    /// the event precedes in the file, and a downstream reader sees a backward
+    /// clock step (observed 2026-09-04 14:05:13.051 → .050). SPEC-009 REQ-005.
+    pub fn log_field_event_at(&mut self, ts: &str, event: &str, note: &str, extra: &Value) {
         let writer = match self.writer.as_mut() {
             Some(w) => w,
             None => return,
         };
 
-        let ts = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string();
         let mut record = serde_json::Map::new();
         if let Some(obj) = extra.as_object() {
             for (k, v) in obj {
@@ -450,6 +459,28 @@ mod tests {
         let mut logger = SessionLogger::new(&dir);
         logger.log_field_event_with("ble_link_lost", "x", &json!({"a": 1}));
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TEST-005h — a field event written from a tick carries THAT tick's ts, so
+    // the event can never be stamped later than the sample it precedes in the
+    // file (observed 2026-09-04: ble_reconnect 14:05:13.051 before sample .050;
+    // the harness read a 1 ms backward clock step).
+    #[test]
+    fn field_event_at_uses_the_given_timestamp() {
+        let dir = tmp_dir("event-at");
+        let mut logger = SessionLogger::new(&dir);
+        let path = logger.start_session("solo").unwrap();
+        logger.log_field_event_at(
+            "2026-09-04T14:05:13.050+10:00",
+            "ble_reconnect",
+            "n",
+            &json!({"gap_ms": 1}),
+        );
+        let ev = &lines(&path)[1];
+        assert_eq!(ev["ts"], json!("2026-09-04T14:05:13.050+10:00"));
+        assert_eq!(ev["event"], json!("ble_reconnect"));
+        assert_eq!(ev["gap_ms"], json!(1));
         let _ = fs::remove_dir_all(&dir);
     }
 }
