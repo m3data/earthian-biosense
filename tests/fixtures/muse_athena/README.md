@@ -47,7 +47,7 @@ governing them; SPEC-015 REQ-015-5b(ii) was corrected the same evening.
 
 ## Committed fixtures for the offline parity guard (TEST-015-2a/2b/2c)
 
-Two small binaries **are** committed (fixture option (i), SPEC-015 §Open questions):
+Two small binaries **are** committed (fixture option (i), decided by Mat 2026-09-10, SPEC-015 §Open questions):
 
 | File | What | sha256 |
 |---|---|---|

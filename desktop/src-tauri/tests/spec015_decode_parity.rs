@@ -24,7 +24,7 @@ const CH: [&str; 4] = ["TP9", "AF7", "AF8", "TP10"];
 const PARITY_TOL_UV: f64 = 0.1;
 // REQ-015-5b anchors.
 const DRL_TOL_LSB: i32 = 256;
-const ALPHA_RMS_MIN_UV: f64 = 0.5; // was 2.0, set from a 4.55×-inflated witness — see SPEC-015 REQ-015-5b correction 2026-09-10 (▢ ratify)
+const ALPHA_RMS_MIN_UV: f64 = 0.5; // was 2.0, set from a 4.55×-inflated witness — see SPEC-015 REQ-015-5b correction 2026-09-10 (ratified 2026-09-10)
 const ALPHA_RMS_MAX_UV: f64 = 60.0;
 
 fn fixture(name: &str) -> Vec<u8> {
