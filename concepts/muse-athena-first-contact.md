@@ -236,6 +236,17 @@ these tools on macOS. Both routes were tested and both fail:
 Consequence: captures are **sequential and not sample-aligned**. Sample-exact parity
 against brainflow is unavailable until someone finds a genuinely simultaneous path.
 
+> ### ⚠️ Correction (2026-09-10): line 2 below was brainflow's own output, on the wrong scale
+>
+> brainflow 5.22.2 applied the 12-bit constant (0.4029 µV/LSB) to 14-bit samples (upstream
+> #854, fixed 2026-08-18 in #855/#856 to 1450/16383). The "3.7–10.7 µV" alpha in line 2 was
+> computed on those values and is 4.55× too large; on the correct scale the same window is
+> ≈ 1–3 µV. Line 2 therefore corroborated brainflow's *mistaken* constant, not muse-rs's — the
+> argument was partly circular. Lines 1 and 3 stand (source agreement, now three lineages
+> including fixed brainflow; DRL/REF mid-rail pins the bit depth). Gain itself has no
+> decoder-independent witness in this repo yet; the guard for it is the frozen-reference
+> parity test, TEST-015-2a.
+
 ### The scaling constant is corroborated three independent ways
 
 Sources disagreed on the Athena packing (14-bit LE ~0.0885 µV/LSB vs classic 12-bit BE

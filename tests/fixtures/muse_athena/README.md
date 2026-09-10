@@ -29,6 +29,37 @@ Line 1 of the `.jsonl` is a `_meta` object (preset, cue marks, control-character
 replies — all five `{"rc":0}`). Every subsequent line is one packet: `{t_unix, hex}`.
 The `.npz` carries `data, marks, eeg_channels, eeg_names, ts_channel, fs`.
 
+
+## ⚠️ Correction 2026-09-10: every brainflow µV figure below is 4.55× too large
+
+brainflow 5.22.2 (the `uv_*.npz` here) scaled Athena EEG with the **12-bit** constant
+1650/4095 = 0.4029 µV/LSB on **14-bit** samples and subtracted no midpoint — measured
+directly from this file (quantisation step 0.402930 µV, values 63–5890 µV, all positive).
+Upstream fixed it on 2026-08-18 (brainflow issue #854, PRs #855 + #856) to 1450/16383 =
+0.0885 µV/LSB with mid-rail 8192 — the rule muse-rs and OpenMuse already used. So the
+"Physiological anchor" alpha RMS values below (9.7 / 3.7 / 4.1 / 10.7 µV) are on the wrong
+scale; on the right one the same window is **≈ 2.9 / 1.1 / 1.2 / 3.3 µV**, and the delta-RMS
+figures scale the same way (the *ratios* in the Berger section are unaffected). The
+"corroborates brainflow's scaling" paragraph was circular: it checked brainflow's numbers
+against a range that brainflow's numbers had suggested. The DRL/REF mid-rail argument is
+unaffected — it never used a decoder. Numbers below are left as written, with this note
+governing them; SPEC-015 REQ-015-5b(ii) was corrected the same evening.
+
+## Committed fixtures for the offline parity guard (TEST-015-2a/2b/2c)
+
+Two small binaries **are** committed (fixture option (i), SPEC-015 §Open questions):
+
+| File | What | sha256 |
+|---|---|---|
+| `golden_eyes_closed.bin` | 389 raw `273e0013` packets, self-framing (byte[0] = len), the first 10 s of the eyes-closed window; **header bytes 2..9 zeroed** (device clock + a per-session constant of unknown meaning) so nothing identifier-shaped ships | `072a639d9a2f94244a182b2f27531ae15d65525b8054e9080309e5f75234f764` |
+| `golden_reference_uv.bin` | frozen reference µV vector, 4 ch × 2,544 samples, f32 LE channel-major, header `EBSREF1`; produced ONCE by muse-rs 0.1.0 via `cargo run --example gen_muse_reference` | `97bd3da66e61931904a8fab539cc43ff390e4e5ae5676343c418682424097009` |
+
+Cut with `scripts/make_muse_golden_slice.py` from the local-only raw capture. **Regenerating
+the reference is a reviewed act** (REQ-015-5a): re-run the generator only after a decoder
+change has been argued for on its own evidence, and update the hash here in the same commit.
+Tests: `desktop/src-tauri/tests/spec015_decode_parity.rs` (`cargo test --test
+spec015_decode_parity`). A missing fixture fails the suite; it never skips.
+
 ## Packet framing (validated against this capture)
 
 Source: `muse-rs` 0.1.0 `src/parse.rs`, which credits OpenMuse's `decode.py`.

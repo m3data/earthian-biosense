@@ -213,9 +213,26 @@ The reference vector is generated **once** by the reference decoder (muse-rs, AD
 The decoded golden capture MUST satisfy both checks below. Neither consults any decoder, so neither can be satisfied by two implementations agreeing on a wrong constant:
 
 1. **Reference-rail check.** DRL/REF (`0x53`) sub-frame values, read as `u16` LE, MUST fall within **±256 LSB of 8192** — the mid-rail of a 14-bit ADC. Observed 2026-07-27: two interleaved channels at 8242.8 and 8261.8, std ≤ 1.35 LSB, no drift across a session. A 12-bit reading cannot produce this. This is the sharpest anchor available and costs nothing: it is internal to a channel the decoder does not even emit.
-2. **Physiological-amplitude check.** Alpha-band (8–13 Hz) RMS over the eyes-closed segment MUST fall within **2–60 µV** per scalp channel. Observed 2026-07-27: 3.7–10.7 µV. The competing 12-bit BE constant (0.488 µV/LSB) differs from 14-bit LE (0.0885) by ~5.5× and would land near 55 µV or 0.7 µV.
+2. **Physiological-amplitude check.** Alpha-band (8–13 Hz) RMS over the eyes-closed segment MUST fall within **0.5–60 µV ▢** per scalp channel. Observed 2026-07-27: 3.7–10.7 µV. The competing 12-bit BE constant (0.488 µV/LSB) differs from 14-bit LE (0.0885) by ~5.5× and would land near 55 µV or 0.7 µV.
 
 **Deliberately coarse.** Layer (2) would not catch a 20 % gain error, and layer (1) has ±3 % headroom. They are not a substitute for 5a; they close the *specific* failure 5a is blind to — the wrong-packing confusion this spec was written to guard, which is a 5.5× error, not a subtle one. *Verified by* [[#TEST-015-2b]].
+
+> **Correction 2026-09-10 (evening) — the alpha bound was set from a mis-scaled witness.** The
+> 2–60 µV bound and the fixture README's "3.7–10.7 µV eyes-closed alpha" were computed on
+> brainflow 5.22.2's µV, which applied the **12-bit** constant (1650/4095 = 0.4029 µV/LSB) to
+> **14-bit** samples — upstream issue #854, fixed in PR #855/#856 on 2026-08-18 to 1450/16383
+> (0.0885) with mid-rail 8192, i.e. exactly muse-rs's and OpenMuse's rule. Every brainflow-derived
+> µV figure in this repo from July is therefore **4.55× too large**. On the correct scale the
+> golden eyes-closed window gives alpha RMS **TP9 3.0 · AF7 0.9 · AF8 0.7 · TP10 3.2 µV** (10 s;
+> the full 20 s window: 2.9 · 1.1 · 1.2 · 3.3), so the frontal channels fail the old bound and
+> TEST-015-2b(ii) went red on the first run against the reference decoder. Lower bound moved to
+> 0.5 µV (▢ Mat to ratify; 2 µV is defensible for the posterior pair only). **Honest scope of this
+> layer:** it catches unpacking/bit-depth confusion (the 12-bit-BE control lands far outside the
+> band); it does *not* catch a 4.5–5.5× gain error at these amplitudes (TEST-015-2c records
+> 0/4 channels caught). Gain is guarded by the relative layer (5a) plus the three-lineage
+> agreement on 1450/16383, which since 2026-08-18 is no longer one lineage. The "three independent
+> ways" argument in the first-contact note was partly circular: its physiology witness was
+> brainflow's own (mis-scaled) output.
 
 ### REQ-015-5c — No decoder ships without both layers green
 Neither layer alone is sufficient: 5a catches implementation drift and is blind to a shared error; 5b catches a shared error and is blind to per-sample drift. A decoder ships only with both green.
@@ -454,7 +471,7 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 
 - **Is a genuinely simultaneous raw+reference capture possible at all?** Unresolved. Both routes tried on macOS failed (§Decode). A single client that decodes *and* retains raw bytes — a muse-rs harness emitting both, or OpenMuse instrumented at its notification callback — would sidestep the contention entirely, since it never needs two connections. Worth an hour if sample-exact parity against a third witness is ever wanted; **not on the critical path** now that ADR-015-6 removes it from the guard.
 
-- **Fixture inclusion under the biometric-data policy — DECISION NEEDED (Mat).** REQ-015-5a/5b need golden raw bytes and a frozen reference vector *in the repo*, or the guard cannot run in CI or on a fresh clone; a test that silently skips is not a guard. But `m3data/earthian-biosense` is **public** and the raw bytes are EEG. Three options: **(i)** commit a decimated slice — the minimum packets to satisfy both layers, likely a few seconds plus one eyes-closed window, stripped of session context and identifiers, as a narrow well-scoped inclusion; **(ii)** commit the full capture; **(iii)** keep fixtures local and accept that the guard runs only on Mat's machines. Leaning **(i)**. Serials and BLE addresses stay out under all three.
+- **Fixture inclusion under the biometric-data policy — DECISION NEEDED (Mat).** *Update 2026-09-10: option (i) is built and waiting on the word — `golden_eyes_closed.bin` (41 KB, 389 packets, 10 s eyes-closed, header bytes 2..9 zeroed) + `golden_reference_uv.bin` (muse-rs, hashes in the fixture README). Both are on the Studio, untracked. TEST-015-2a/2b/2c pass locally against them (7/7); on a fresh clone the suite fails loudly until they are committed.* REQ-015-5a/5b need golden raw bytes and a frozen reference vector *in the repo*, or the guard cannot run in CI or on a fresh clone; a test that silently skips is not a guard. But `m3data/earthian-biosense` is **public** and the raw bytes are EEG. Three options: **(i)** commit a decimated slice — the minimum packets to satisfy both layers, likely a few seconds plus one eyes-closed window, stripped of session context and identifiers, as a narrow well-scoped inclusion; **(ii)** commit the full capture; **(iii)** keep fixtures local and accept that the guard runs only on Mat's machines. Leaning **(i)**. Serials and BLE addresses stay out under all three.
 - **Battery / thermal** — two concurrent BLE peripherals + FFT per tick; quantify on a long session.
 - **Timestamp alignment across substrates** — the H10 tick and the Muse stream have independent clocks; the join for cross-substrate analysis needs a shared reference (monotonic host clock at notification receipt is the v0.1 default; assess drift). This is the seam H2 (lead/lag) depends on.
 - **Extraction trigger** — at what point does ADR-015-1's shared core get extracted: when iOS starts, or earlier if a Python parity client is wanted?
