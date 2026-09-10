@@ -368,6 +368,26 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 - **Raw side-file format** — JSONL vs binary; decide on the one-hour sizing test. 4 ch × 256 Hz × ~8 h battery is the worst case to bound.
 - **Dual-BLE stability on macOS** — does btleplug sustain H10 + Muse concurrently over a long session without dropping notifications on either? (SPEC-013 raised the same question for concurrent PMD+HR; now two *devices*, not two characteristics.) **⚠️ Still fully open — the 2026-07-27 concurrency test does NOT bear on this.** That test was *two client stacks contending for one peripheral* (brainflow and bleak both wanting the Muse), which failed on **discovery**: a connected peripheral stops advertising. This question is *one client holding two different peripherals*, where each is discoverable when the other is connected and no contention exists. Different mechanism, different answer. **Do not read the 2026-07-27 result as evidence either way.**
 
+  **Partial result 2026-09-10 — the platform layer is clear; the question is not closed.** A third
+  configuration was measured: *two clients, two peripherals* (EBS desktop holding the H10 via
+  btleplug, brainflow holding the Muse in a separate Python process), 60 s baseline / 120 s dual /
+  45 s recovery on the Studio. H10 **1.000 → 0.999 → 1.000 Hz**, max inter-sample gap **1.05 s in
+  all three phases**, identical to the hundredth — no measurable degradation. Muse **30,914 samples
+  in 120.7 s = 256.2 Hz** against a nominal 256; rate *at* nominal means no loss, and the 0.211 s
+  max gap is arrival jitter (loss would read *below* nominal). So CoreBluetooth on this host
+  sustains two concurrent peripheral links at full rate, and REQ-015-3 is satisfiable here.
+  **What it does NOT establish:** btleplug holding *both* peripherals inside *one* process, which is
+  what the desktop app would do — the configuration this bullet actually asks about. Also untested:
+  long sessions (2 min only), contact quality (the probe counted samples and timestamps, discarding
+  the voltage channels), and battery/thermal. Repro: `scripts/probe_dual_ble.py`.
+
+- **Second-process capture as a fallback transport — DECISION NEEDED (Mat).** The 2026-09-10 probe
+  incidentally demonstrates a path the spec does not consider: the Muse held by a separate process
+  writing its own wall-clock-stamped stream, joined post-hoc like every other substrate. It is
+  consistent with ADR-015-2 (non-fusion at the schema level) and would sidestep the one-client
+  two-peripheral question entirely. It is *not* proposed here — recording it so the option is not
+  rediscovered, and because choosing it would change ADR-015-1.
+
 - **Is a genuinely simultaneous raw+reference capture possible at all?** Unresolved. Both routes tried on macOS failed (§Decode). A single client that decodes *and* retains raw bytes — a muse-rs harness emitting both, or OpenMuse instrumented at its notification callback — would sidestep the contention entirely, since it never needs two connections. Worth an hour if sample-exact parity against a third witness is ever wanted; **not on the critical path** now that ADR-015-6 removes it from the guard.
 
 - **Fixture inclusion under the biometric-data policy — DECISION NEEDED (Mat).** REQ-015-5a/5b need golden raw bytes and a frozen reference vector *in the repo*, or the guard cannot run in CI or on a fresh clone; a test that silently skips is not a guard. But `m3data/earthian-biosense` is **public** and the raw bytes are EEG. Three options: **(i)** commit a decimated slice — the minimum packets to satisfy both layers, likely a few seconds plus one eyes-closed window, stripped of session context and identifiers, as a narrow well-scoped inclusion; **(ii)** commit the full capture; **(iii)** keep fixtures local and accept that the guard runs only on Mat's machines. Leaning **(i)**. Serials and BLE addresses stay out under all three.
