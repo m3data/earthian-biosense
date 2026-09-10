@@ -366,7 +366,7 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 
 - ~~**Preset / channel count**~~ — DECIDED 2026-07-25: `p1035` / EEG4 (ADR-015-4).
 - **Raw side-file format** — JSONL vs binary; decide on the one-hour sizing test. 4 ch × 256 Hz × ~8 h battery is the worst case to bound.
-- **Dual-BLE stability on macOS** — does btleplug sustain H10 + Muse concurrently over a long session without dropping notifications on either? (SPEC-013 raised the same question for concurrent PMD+HR; now two *devices*, not two characteristics.) **⚠️ Still fully open — the 2026-07-27 concurrency test does NOT bear on this.** That test was *two client stacks contending for one peripheral* (brainflow and bleak both wanting the Muse), which failed on **discovery**: a connected peripheral stops advertising. This question is *one client holding two different peripherals*, where each is discoverable when the other is connected and no contention exists. Different mechanism, different answer. **Do not read the 2026-07-27 result as evidence either way.**
+- **Dual-BLE stability on macOS — ANSWERED 2026-09-10 for a short session; long-session behaviour still open.** Original question: does btleplug sustain H10 + Muse concurrently over a long session without dropping notifications on either? (SPEC-013 raised the same question for concurrent PMD+HR; now two *devices*, not two characteristics.) **⚠️ Still fully open — the 2026-07-27 concurrency test does NOT bear on this.** That test was *two client stacks contending for one peripheral* (brainflow and bleak both wanting the Muse), which failed on **discovery**: a connected peripheral stops advertising. This question is *one client holding two different peripherals*, where each is discoverable when the other is connected and no contention exists. Different mechanism, different answer. **Do not read the 2026-07-27 result as evidence either way.**
 
   **Partial result 2026-09-10 — the platform layer is clear; the question is not closed.** A third
   configuration was measured: *two clients, two peripherals* (EBS desktop holding the H10 via
@@ -380,6 +380,26 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
   what the desktop app would do — the configuration this bullet actually asks about. Also untested:
   long sessions (2 min only), contact quality (the probe counted samples and timestamps, discarding
   the voltage channels), and battery/thermal. Repro: `scripts/probe_dual_ble.py`.
+
+  **Spike result 2026-09-10 — one client, one adapter, two peripherals: PASS.** The configuration
+  this bullet actually asks about, run outside the app (`desktop/src-tauri/examples/dual_ble_spike.rs`,
+  `cargo run --release --example dual_ble_spike`). H10 connected and subscribed first, Muse connected
+  second on the same adapter and handshaked (`h → p1035 → dc001 → dc001`, write-without-response),
+  then 90 s holding both:
+
+  | source | notifications | rate | worst gap |
+  |---|---|---|---|
+  | H10 | 90 | 1.00 Hz (nominal 1) | 1.05 s |
+  | Muse | 3495 | 38.83 Hz | 0.08 s |
+
+  The H10 held exactly nominal for the full 90 s with the Muse streaming, and its worst gap (1.05 s)
+  is identical to the two-process probe and to solo capture — **REQ-015-3 is satisfied at the
+  transport layer.** ⚠️ **The Muse figure is BLE notifications — multiplexed packets — NOT samples.**
+  This spike decodes nothing; a packet carries several sub-frames, so packet rate and sample rate are
+  different quantities (brainflow reported 256 Hz of decoded EEG over the same link earlier the same
+  day). **Still open:** long sessions (90 s only), decode under dual load, contact quality,
+  battery/thermal, and the app-level state machine — the spike bypasses `AppState`, the generation
+  counter and the reconnect supervisor entirely, and those are where the remaining work is.
 
 - ~~**Second-process capture as a fallback transport**~~ — **REJECTED 2026-09-10 (Mat).** The probe
   incidentally demonstrated it (Muse held by a separate process writing its own wall-clock-stamped
