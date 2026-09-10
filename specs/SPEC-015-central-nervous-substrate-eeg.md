@@ -381,12 +381,22 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
   long sessions (2 min only), contact quality (the probe counted samples and timestamps, discarding
   the voltage channels), and battery/thermal. Repro: `scripts/probe_dual_ble.py`.
 
-- **Second-process capture as a fallback transport — DECISION NEEDED (Mat).** The 2026-09-10 probe
-  incidentally demonstrates a path the spec does not consider: the Muse held by a separate process
-  writing its own wall-clock-stamped stream, joined post-hoc like every other substrate. It is
-  consistent with ADR-015-2 (non-fusion at the schema level) and would sidestep the one-client
-  two-peripheral question entirely. It is *not* proposed here — recording it so the option is not
-  rediscovered, and because choosing it would change ADR-015-1.
+- ~~**Second-process capture as a fallback transport**~~ — **REJECTED 2026-09-10 (Mat).** The probe
+  incidentally demonstrated it (Muse held by a separate process writing its own wall-clock-stamped
+  stream, joined post-hoc), and it is consistent with ADR-015-2. Rejected on **UX grounds: the
+  cerebral signal is managed by EBS, in one app.** ADR-015-1 stands. Recorded so it is not
+  rediscovered and re-proposed.
+
+- **Where the one-client two-peripheral constraint actually lives (2026-09-10).** The spec says
+  "both apps currently manage a single peripheral" and calls a two-device connection state machine
+  genuinely new work. True at the app level, but narrower than it reads: the BLE layer is already
+  device-parameterised — `connect_and_stream(adapter, address, tx, label, …)`, `teardown_peripheral(
+  adapter, address)`, and `DeviceRegistry` already maps serials to A/B participant labels for dyad
+  capture. The single-device constraint is one `active: bool` guard in `cmd_connect` ("A device is
+  already connected") plus an `AppState` shaped for one connection, one generation counter and one
+  channel. So the work is in the **connection state machine**, not the transport. Not yet verified:
+  that btleplug sustains both peripherals on one adapter in one process — the spike that answers it
+  can bypass the app entirely.
 
 - **Is a genuinely simultaneous raw+reference capture possible at all?** Unresolved. Both routes tried on macOS failed (§Decode). A single client that decodes *and* retains raw bytes — a muse-rs harness emitting both, or OpenMuse instrumented at its notification callback — would sidestep the contention entirely, since it never needs two connections. Worth an hour if sample-exact parity against a third witness is ever wanted; **not on the critical path** now that ADR-015-6 removes it from the guard.
 
