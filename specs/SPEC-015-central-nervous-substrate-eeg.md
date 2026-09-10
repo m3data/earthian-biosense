@@ -401,6 +401,40 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
   battery/thermal, and the app-level state machine — the spike bypasses `AppState`, the generation
   counter and the reconnect supervisor entirely, and those are where the remaining work is.
 
+  **Spike 2 result 2026-09-10 (evening) — decode under dual load, 600 s, contact measured: PASS with
+  two findings.** `desktop/src-tauri/examples/dual_ble_decode_spike.rs` (muse-rs 0.1.0 as a
+  dev-dependency for `parse_athena_notification`; DRL/REF read from raw bytes since muse-rs discards
+  `0x53`; CON-015-5 contact per 1 s tick; raw packets + per-second summaries to the gitignored
+  fixture dir). One process, one adapter, H10 first then Muse, wearer seated at the desk:
+
+  | source | 600 s | rate | note |
+  |---|---|---|---|
+  | H10 | 602 beats | 1.00 Hz | worst gap 1.74 s (one late notification; solo/spike-1 was 1.05 s) |
+  | Muse packets | 23,312 | 38.85 pk/s | 5 packet-index discontinuities |
+  | Muse EEG, each channel | 152,248 samples | **253.7 Hz** | decoded µV, all four channels equal |
+  | DRL/REF | — | 8241–8263 LSB | +49…+71 above mid-rail 8192, never left the band |
+  | Battery | 71 % → 68 % | | |
+
+  Contact (share of 1 s ticks): TP9 good 55 / marginal 42 / poor 3 %; AF7 79 / 13 / 8; AF8 58 / 25 / 17;
+  TP10 33 / 58 / 9. Alpha RMS 1–8 µV in good windows (REQ-015-5b range). Poor windows arrived in
+  bursts on both channels of a pair at once (both mastoids, or both forehead), i.e. movement/band
+  contact, not one bad electrode.
+
+  **Finding A — the EEG sample rate is ~254 Hz, not 256, and it is the device.** 253.7 Hz here over
+  600 s and 254.2 Hz in the 2026-07-27 capture, on different tooling. The 5 index drops cannot account
+  for it (≈ 1,400 samples short vs ≤ 5 × 16). Consequence for the join with the H10 and the transcript
+  clock: **never build EEG time from sample count × 1/256** — 0.9 % drift is ~5 s per 10 min. Time from
+  host arrival per packet (SPEC-010's clock), samples interpolated within the packet. Worth pinning
+  `fs` as a measured per-session value in `central_meta`, not the nominal.
+
+  **Finding B — contact is a pair-wise, bursty state, so a per-channel 1 s label under-describes it.**
+  The 1 s tick is right for the record (CON-015-5 stands) but the consumer wants a run-length view:
+  most of the session is usable (good+marginal 83–97 % per channel), the unusable part is a handful
+  of 10–30 s bursts. Still open: whether contact should be gated per-pair.
+
+  **Still open after this spike:** long sessions (> 10 min), battery/thermal, the app-level state
+  machine, and the CON-015-5 thresholds themselves (provisional; this is the first labelled data).
+
 - ~~**Second-process capture as a fallback transport**~~ — **REJECTED 2026-09-10 (Mat).** The probe
   incidentally demonstrated it (Muse held by a separate process writing its own wall-clock-stamped
   stream, joined post-hoc), and it is consistent with ADR-015-2. Rejected on **UX grounds: the
