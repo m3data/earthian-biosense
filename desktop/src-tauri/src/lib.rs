@@ -4,23 +4,29 @@
 //! and IPC event emission to the webview frontend.
 
 mod ble;
+pub mod eeg;
 pub mod hrv;
 pub mod motion;
 pub mod session;
 
+use ble::muse::{connect_muse, halt_muse, MuseMessage, MuseStatus};
 use ble::registry::DeviceRegistry;
 use ble::reconnect::{self, backoff_for_attempt, gap_ms, supervision_deadline, LINK_WATCHDOG};
 use ble::{
     connect_and_stream, create_adapter, reconnect_and_stream, scan_devices, teardown_peripheral,
     AccBuffer, DeviceStatus, DiscoveredDevice, HrMessage, StreamAlive,
 };
-use btleplug::platform::Adapter;
+use btleplug::api::Characteristic;
+use btleplug::platform::{Adapter, Peripheral};
+use eeg::{central_tick_json, CentralTicker, SeqExtender, CH_SCALP, FS_NOMINAL, MUSE_PRESET};
 use hrv::phase::PhaseTrajectory;
 use hrv::compute_hrv_metrics;
 use motion::{MotionProcessor, MotionState};
-use session::{SessionFileInfo, SessionLogger, SessionSummary};
+use muse_rs::parse::parse_athena_notification;
+use muse_rs::types::MuseEvent;
+use session::{CentralMeta, SessionFileInfo, SessionLogger, SessionSummary};
 use serde::Serialize;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
@@ -38,6 +44,12 @@ const RECONNECT_RESCAN: Duration = Duration::from_secs(2);
 const RECONNECT_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(20);
 /// How long `cmd_disconnect` waits for the processing task to exit (§10).
 const DISCONNECT_JOIN_TIMEOUT: Duration = Duration::from_secs(5);
+/// SPEC-015 v0.1: this long without a Muse data packet ⇒ link declared lost.
+/// No reconnect supervisor for the Muse in v0.1; the task exits and the user
+/// reconnects.
+const MUSE_LINK_WATCHDOG: Duration = Duration::from_secs(5);
+/// Cadence of the `central` tick (CON-015-3).
+const CENTRAL_TICK: Duration = Duration::from_secs(1);
 
 /// Shared application state.
 pub struct AppState {
@@ -57,6 +69,18 @@ pub struct AppState {
     active: Mutex<bool>,
     session_logger: Mutex<SessionLogger>,
     sessions_dir: PathBuf,
+    // --- SPEC-015: the Muse link, the same shape as the H10 fields above and
+    // never shared with them. `cmd_connect` / `cmd_disconnect` are untouched.
+    /// The instant at which `host_mono` was 0 (app start).
+    mono_epoch: Instant,
+    muse_stop_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+    muse_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    muse_active: Mutex<bool>,
+    /// Minted by every `cmd_connect_muse`; the EEG task acts on shared state
+    /// only while it owns the current generation.
+    muse_generation: AtomicU64,
+    /// Held for the whole body of `cmd_connect_muse` / `cmd_disconnect_muse`.
+    muse_lifecycle: Mutex<()>,
 }
 
 impl AppState {
@@ -680,6 +704,227 @@ async fn cmd_disconnect(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+// === SPEC-015: Muse link + EEG task ===
+
+fn local_ts_ms() -> String {
+    chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false)
+}
+
+/// Open the central window if a session is active and none is open yet
+/// ("whichever is second": session start while streaming, or handshake while
+/// a session is active). The logger is the single writer; this only asks.
+fn maybe_open_central(logger: &mut SessionLogger, device: &str, host_mono: f64) {
+    if logger.is_active() && !logger.central_active() {
+        let meta = CentralMeta {
+            device: device.to_string(),
+            preset: MUSE_PRESET.to_string(),
+            channels: CH_SCALP.iter().map(|s| s.to_string()).collect(),
+            scalp_channels: CH_SCALP.iter().map(|s| s.to_string()).collect(),
+            sample_rate_hz: FS_NOMINAL as u32,
+        };
+        if let Err(e) = logger.central_start(meta, host_mono) {
+            log::warn!("central_start failed: {} (EEG not recorded this session)", e);
+        }
+    }
+}
+
+/// The EEG task: decode, tick at 1 Hz, write through the logger, watch the link.
+#[allow(clippy::too_many_arguments)]
+async fn run_eeg_task(
+    handle: tauri::AppHandle,
+    mut rx: mpsc::UnboundedReceiver<MuseMessage>,
+    mut stop_rx: tokio::sync::oneshot::Receiver<()>,
+    mut status: MuseStatus,
+    alive: StreamAlive,
+    peripheral: Peripheral,
+    ctrl: Characteristic,
+    gen: u64,
+) {
+    let mono_epoch = handle.state::<AppState>().mono_epoch;
+    let mut ticker = CentralTicker::new();
+    let mut seq = SeqExtender::new();
+    // Watchdog armed from connect: 5 s to the first packet counts too.
+    let mut last_packet = Instant::now();
+    let mut interval = tokio::time::interval(CENTRAL_TICK);
+    interval.tick().await; // the first tick of an interval fires immediately
+    let mut link_lost = false;
+
+    loop {
+        tokio::select! {
+            msg = rx.recv() => {
+                let (bytes, host_mono, msg_gen) = match msg {
+                    Some(m) => m,
+                    None => {
+                        log::warn!("Muse data channel closed (gen {}); exiting", gen);
+                        link_lost = true;
+                        break;
+                    }
+                };
+                if msg_gen != gen {
+                    continue; // queued by a retired listener
+                }
+                last_packet = Instant::now();
+
+                let mut eeg: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+                for ev in parse_athena_notification(&bytes) {
+                    match ev {
+                        MuseEvent::Eeg(r) if r.electrode < CH_SCALP.len() => {
+                            ticker.push(r.electrode, &r.samples);
+                            eeg.entry(CH_SCALP[r.electrode].to_string())
+                                .or_default()
+                                .extend(r.samples);
+                        }
+                        MuseEvent::Telemetry(t) => {
+                            status.battery = Some(t.battery_level);
+                        }
+                        _ => {}
+                    }
+                }
+                // Packet sequence counter (byte[1], wraps at 256) → monotonic u64.
+                let packet_seq = match bytes.get(1) {
+                    Some(&i) => seq.extend(i),
+                    None => continue,
+                };
+                if eeg.is_empty() {
+                    continue; // telemetry / IMU-only packet: nothing to record
+                }
+
+                let ts = local_ts_ms();
+                let state = handle.state::<AppState>();
+                let mut logger = state.session_logger.lock().await;
+                maybe_open_central(&mut logger, &status.name, host_mono);
+                // Contact of the most recently COMPLETED tick; null in the
+                // first second of a link.
+                let contact = ticker.last_contact();
+                logger.log_raw_batch(&ts, host_mono, packet_seq, &eeg, contact.as_ref());
+            }
+            _ = interval.tick() => {
+                if last_packet.elapsed() >= MUSE_LINK_WATCHDOG {
+                    log::warn!(
+                        "Muse link lost: no data packet for {:?} (gen {})",
+                        MUSE_LINK_WATCHDOG, gen
+                    );
+                    link_lost = true;
+                    break;
+                }
+                let host_mono = mono_epoch.elapsed().as_secs_f64();
+                let tick = ticker.close_tick(host_mono);
+                let tick_json = central_tick_json(&tick);
+                handle.emit("ebs:central", &tick_json).ok();
+
+                let ts = local_ts_ms();
+                let state = handle.state::<AppState>();
+                let mut logger = state.session_logger.lock().await;
+                maybe_open_central(&mut logger, &status.name, host_mono);
+                logger.log_central_tick(&ts, &tick);
+            }
+            _ = &mut stop_rx => {
+                log::info!("Muse stop signal received (gen {})", gen);
+                break;
+            }
+        }
+    }
+
+    // Exit: retire the listener; then, only while this task still owns the
+    // Muse generation, close the central window, halt the device and publish
+    // the terminal status. A superseded task touches nothing shared.
+    alive.store(false, Ordering::Relaxed);
+    let state = handle.state::<AppState>();
+    let owns = state.muse_generation.load(Ordering::SeqCst) == gen;
+    if !owns {
+        log::info!("EEG task gen {} exiting; generation superseded", gen);
+        return;
+    }
+    {
+        let mut logger = state.session_logger.lock().await;
+        if logger.central_active() {
+            let host_mono = mono_epoch.elapsed().as_secs_f64();
+            logger.central_end(host_mono);
+        }
+    }
+    halt_muse(&peripheral, &ctrl).await;
+    status.connected = false;
+    handle.emit("ebs:muse-status", &status).ok();
+    if link_lost {
+        // Nobody will call cmd_disconnect_muse for us: release the slot so
+        // the user can reconnect. (On user stop, cmd_disconnect_muse does this
+        // after joining, mirroring cmd_disconnect.)
+        state.muse_stop_tx.lock().await.take();
+        *state.muse_active.lock().await = false;
+    }
+}
+
+#[tauri::command]
+async fn cmd_connect_muse(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    address: String,
+) -> Result<MuseStatus, String> {
+    let _lifecycle = state.muse_lifecycle.lock().await;
+    let mut active = state.muse_active.lock().await;
+    if *active {
+        return Err("A Muse is already connected".to_string());
+    }
+    // A task that exited on its own (link lost) leaves a finished handle behind.
+    if let Some(old) = state.muse_task.lock().await.take() {
+        old.abort();
+    }
+
+    let (tx, rx) = mpsc::unbounded_channel::<MuseMessage>();
+    let gen = state.muse_generation.fetch_add(1, Ordering::SeqCst) + 1;
+
+    let guard = state.get_adapter().await?;
+    let adapter = guard.as_ref().unwrap();
+    let (status, alive, peripheral, ctrl) =
+        connect_muse(adapter, address, tx, state.mono_epoch, gen).await?;
+    drop(guard);
+
+    app.emit("ebs:muse-status", &status).ok();
+    *active = true;
+    drop(active);
+
+    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+    *state.muse_stop_tx.lock().await = Some(stop_tx);
+
+    let task = tokio::spawn(run_eeg_task(
+        app.clone(),
+        rx,
+        stop_rx,
+        status.clone(),
+        alive,
+        peripheral,
+        ctrl,
+        gen,
+    ));
+    *state.muse_task.lock().await = Some(task);
+
+    Ok(status)
+}
+
+#[tauri::command]
+async fn cmd_disconnect_muse(state: State<'_, AppState>) -> Result<(), String> {
+    let _lifecycle = state.muse_lifecycle.lock().await;
+    let stop_tx = state.muse_stop_tx.lock().await.take();
+    if let Some(tx) = stop_tx {
+        tx.send(()).ok();
+    }
+    let task = state.muse_task.lock().await.take();
+    if let Some(task) = task {
+        match tokio::time::timeout(DISCONNECT_JOIN_TIMEOUT, task).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => log::warn!("EEG task ended with error on disconnect: {}", e),
+            Err(_) => log::warn!(
+                "EEG task did not exit within {:?} of stop; continuing disconnect",
+                DISCONNECT_JOIN_TIMEOUT
+            ),
+        }
+    }
+    // The session (if any) keeps recording autonomic data (REQ-015-3); the
+    // task closed the central window on its way out.
+    *state.muse_active.lock().await = false;
+    Ok(())
+}
+
 #[tauri::command]
 async fn cmd_start_session(
     state: State<'_, AppState>,
@@ -738,7 +983,11 @@ pub fn run() {
         DeviceRegistry::empty()
     });
 
-    let session_logger = SessionLogger::new(&sessions_dir);
+    // SPEC-015: one monotonic epoch for host_mono (app start); the logger
+    // anchors session_start.host_mono_epoch to it.
+    let mono_epoch = Instant::now();
+    let mut session_logger = SessionLogger::new(&sessions_dir);
+    session_logger.set_mono_epoch(mono_epoch);
 
     tauri::Builder::default()
         .manage(AppState {
@@ -751,6 +1000,12 @@ pub fn run() {
             active: Mutex::new(false),
             session_logger: Mutex::new(session_logger),
             sessions_dir,
+            mono_epoch,
+            muse_stop_tx: Mutex::new(None),
+            muse_task: Mutex::new(None),
+            muse_active: Mutex::new(false),
+            muse_generation: AtomicU64::new(0),
+            muse_lifecycle: Mutex::new(()),
         })
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -766,6 +1021,8 @@ pub fn run() {
             cmd_scan_devices,
             cmd_connect,
             cmd_disconnect,
+            cmd_connect_muse,
+            cmd_disconnect_muse,
             cmd_start_session,
             cmd_stop_session,
             cmd_list_sessions,

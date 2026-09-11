@@ -718,3 +718,67 @@ button.active {
   border: 1px solid rgba(180, 165, 145, 0.08);
   border-radius: 10px;
 }
+
+/* === SPEC-015 v0.1 — Muse segment in the session bar ===
+   Contact chips: one per scalp channel, class set every 1 Hz `ebs:central` tick.
+   Muted palette, matching the status-dot greens/ambers/reds in index.html. */
+.muse-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.muse-segment .muse-name {
+  font-size: 11px;
+  color: #888;
+}
+
+.contact-chips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.contact-chip {
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.contact-chip.contact-good {
+  color: rgb(130, 155, 130);
+  border-color: rgba(130, 155, 130, 0.5);
+  background: rgba(130, 155, 130, 0.12);
+}
+
+.contact-chip.contact-marginal {
+  color: rgb(205, 165, 70);
+  border-color: rgba(205, 165, 70, 0.5);
+  background: rgba(205, 165, 70, 0.12);
+}
+
+.contact-chip.contact-poor {
+  color: rgb(205, 110, 70);
+  border-color: rgba(205, 110, 70, 0.5);
+  background: rgba(205, 110, 70, 0.12);
+}
+
+.rel-alpha {
+  font-size: 11px;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scan panel: small tag on rows whose `kind` is "muse" */
+.device-kind-tag {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  margin-left: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 165, 145, 0.35);
+  color: rgba(180, 165, 145, 0.85);
+}

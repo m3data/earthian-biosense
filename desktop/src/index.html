@@ -264,6 +264,22 @@
 
     <button id="btn-disconnect" class="danger hidden">Disconnect</button>
 
+    <!-- SPEC-015 v0.1: Muse segment, shown only while a Muse is connected.
+         Independent of the H10 segment above; never gates session controls. -->
+    <span id="muse-segment" class="muse-segment hidden">
+      <span class="bar-separator"></span>
+      <span class="muse-name" id="muse-name"></span>
+      <span class="battery-value" id="muse-battery"></span>
+      <span class="contact-chips">
+        <span class="contact-chip contact-poor" id="contact-TP9">TP9</span>
+        <span class="contact-chip contact-poor" id="contact-AF7">AF7</span>
+        <span class="contact-chip contact-poor" id="contact-AF8">AF8</span>
+        <span class="contact-chip contact-poor" id="contact-TP10">TP10</span>
+      </span>
+      <span class="rel-alpha" id="rel-alpha">&alpha; --</span>
+      <button id="btn-disconnect-muse" class="danger">Disconnect EEG</button>
+    </span>
+
     <span style="flex:1"></span>
 
     <span id="session-name" style="font-size:11px;color:#555"></span>
@@ -275,7 +291,7 @@
   <div id="scan-panel-backdrop" class="hidden"></div>
   <div id="scan-panel" class="hidden">
     <h2><i class="ph ph-bluetooth"></i> Connect Device</h2>
-    <button id="btn-scan">Scan for Polar H10</button>
+    <button id="btn-scan">Scan for devices</button>
     <ul id="device-list" class="device-list"></ul>
     <button id="btn-connect" class="primary hidden">Connect</button>
     <div style="margin-top:12px">

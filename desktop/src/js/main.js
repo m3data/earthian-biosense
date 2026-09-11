@@ -36,6 +36,11 @@ const state = {
   isReconnecting: false,
   isSessionActive: false,
 
+  // SPEC-015 v0.1: Muse link state, independent of the H10 fields above.
+  // Sessions are autonomic-first: session controls are tied to the H10 only,
+  // so a Muse-only connection never shows Start/Stop.
+  isMuseConnected: false,
+
   // Dyadic session state
   isDyadic: false,
   participants: null,
@@ -74,7 +79,7 @@ async function scanDevices() {
   const btn = document.getElementById('btn-scan');
   btn.disabled = true;
   btn.textContent = 'Scanning...';
-  log('Scanning for Polar H10 devices...');
+  log('Scanning for devices (Polar H10, Muse S)...');
 
   try {
     const devices = await invoke('cmd_scan_devices', { timeoutSecs: 5 });
@@ -84,16 +89,20 @@ async function scanDevices() {
     document.getElementById('btn-connect').classList.add('hidden');
 
     if (devices.length === 0) {
-      log('No Polar H10 devices found. Is the strap on?');
+      log('No devices found. Is the strap on / the headband awake?');
     } else {
       devices.forEach(d => {
         const li = document.createElement('li');
-        const label = d.registry_info
-          ? `${d.registry_info.label}: ${d.registry_info.strap}`
-          : 'Unregistered';
+        const isMuse = d.kind === 'muse';
+        const label = isMuse
+          ? ''
+          : (d.registry_info
+              ? `${d.registry_info.label}: ${d.registry_info.strap}`
+              : 'Unregistered');
         li.innerHTML = `
           <span>
             <span class="device-name">${d.name}</span>
+            ${isMuse ? '<span class="device-kind-tag">EEG</span>' : ''}
             <span class="device-label">${label}</span>
           </span>
         `;
@@ -112,11 +121,32 @@ async function scanDevices() {
   }
 
   btn.disabled = false;
-  btn.textContent = 'Scan for Polar H10';
+  btn.textContent = 'Scan for devices';
+}
+
+// The scan-panel opener stays visible while either instrument is still
+// unconnected, so the second device can be added after the first.
+function updateOpenScanButton() {
+  const btn = document.getElementById('btn-open-scan');
+  if (state.isConnected && state.isMuseConnected) {
+    btn.classList.add('hidden');
+  } else {
+    btn.classList.remove('hidden');
+  }
+}
+
+function closeScanPanel() {
+  document.getElementById('scan-panel').classList.add('hidden');
+  document.getElementById('scan-panel-backdrop').classList.add('hidden');
 }
 
 async function connectDevice() {
   if (!state.selectedDevice) return;
+
+  // Route by device kind (SPEC-015 v0.1). H10 path below is unchanged.
+  if (state.selectedDevice.kind === 'muse') {
+    return connectMuse();
+  }
 
   const label = state.selectedDevice.registry_info?.label || 'A';
   log(`Connecting to ${state.selectedDevice.name} as ${label}...`);
@@ -132,11 +162,10 @@ async function connectDevice() {
     state.isConnected = true;
 
     // Show session controls, hide scan panel + backdrop
-    document.getElementById('scan-panel').classList.add('hidden');
-    document.getElementById('scan-panel-backdrop').classList.add('hidden');
+    closeScanPanel();
     document.getElementById('session-controls').classList.remove('hidden');
     document.getElementById('btn-disconnect').classList.remove('hidden');
-    document.getElementById('btn-open-scan').classList.add('hidden');
+    updateOpenScanButton();
 
     if (status.battery != null) {
       document.getElementById('battery-value').textContent = `${status.battery}%`;
@@ -161,7 +190,7 @@ async function disconnectDevice() {
 
     document.getElementById('session-controls').classList.add('hidden');
     document.getElementById('btn-disconnect').classList.add('hidden');
-    document.getElementById('btn-open-scan').classList.remove('hidden');
+    updateOpenScanButton();
     document.getElementById('battery-value').textContent = '';
 
     // Reset live HR display
@@ -169,6 +198,70 @@ async function disconnectDevice() {
   } catch (e) {
     log(`Disconnect error: ${e}`);
   }
+}
+
+// === Muse S (SPEC-015 v0.1) ===
+// The Muse link is independent of the H10 link: connecting or dropping it
+// never touches session controls, the status dot, or the H10 segment.
+const MUSE_CHANNELS = ['TP9', 'AF7', 'AF8', 'TP10'];
+
+function showMuseSegment(status) {
+  state.isMuseConnected = true;
+  const seg = document.getElementById('muse-segment');
+  seg.classList.remove('hidden');
+  document.getElementById('muse-name').textContent = shortMuseName(status.name);
+  document.getElementById('muse-battery').textContent =
+    status.battery != null ? `${status.battery}%` : '';
+  updateOpenScanButton();
+}
+
+function hideMuseSegment() {
+  state.isMuseConnected = false;
+  document.getElementById('muse-segment').classList.add('hidden');
+  document.getElementById('muse-name').textContent = '';
+  document.getElementById('muse-battery').textContent = '';
+  document.getElementById('rel-alpha').textContent = 'α --';
+  MUSE_CHANNELS.forEach(ch => setContactChip(ch, 'poor'));
+  updateOpenScanButton();
+}
+
+// "MuseS-7A3B" -> "7A3B"; anything else passes through.
+function shortMuseName(name) {
+  if (!name) return 'Muse';
+  return name.startsWith('MuseS-') ? name.slice('MuseS-'.length) : name;
+}
+
+function setContactChip(channel, quality) {
+  const el = document.getElementById(`contact-${channel}`);
+  if (!el) return;
+  const q = ['good', 'marginal', 'poor'].includes(quality) ? quality : 'poor';
+  el.className = `contact-chip contact-${q}`;
+}
+
+async function connectMuse() {
+  if (!state.selectedDevice) return;
+  log(`Connecting to ${state.selectedDevice.name} (EEG)...`);
+
+  try {
+    const status = await invoke('cmd_connect_muse', {
+      address: state.selectedDevice.address,
+    });
+    log(`Connected EEG: ${status.name} (battery: ${status.battery ?? '?'}%)`);
+    closeScanPanel();
+    showMuseSegment(status);
+  } catch (e) {
+    log(`EEG connection error: ${e}`);
+  }
+}
+
+async function disconnectMuse() {
+  try {
+    await invoke('cmd_disconnect_muse');
+    log('EEG disconnected');
+  } catch (e) {
+    log(`EEG disconnect error: ${e}`);
+  }
+  hideMuseSegment();
 }
 
 // === Session Controls ===
@@ -559,6 +652,38 @@ function setupTauriListeners() {
     const { gap_ms, attempts } = event.payload;
     log(`Reconnected after ${gap_ms} ms (${attempts} attempts)`);
   });
+
+  // SPEC-015 v0.1: Muse link status. Additive — never touches the H10
+  // status dot or `ebs:device-status`. On link lost the backend emits
+  // connected:false and the task exits; the user reconnects by hand.
+  listen('ebs:muse-status', (event) => {
+    const data = event.payload;
+    if (data.connected) {
+      showMuseSegment(data);
+      log(`EEG ${data.name}: connected`);
+    } else {
+      hideMuseSegment();
+      log(`EEG ${data.name ?? ''}: disconnected`);
+    }
+  });
+
+  // SPEC-015 v0.1: 1 Hz central tick. Chips + posterior rel-alpha only;
+  // no history, no charts.
+  listen('ebs:central', (event) => {
+    const data = event.payload;
+    const contact = data.contact || {};
+    MUSE_CHANNELS.forEach(ch => setContactChip(ch, contact[ch]));
+
+    const ra = data.rel_alpha;
+    const el = document.getElementById('rel-alpha');
+    if (!el) return;
+    if (ra && ra.TP9 != null && ra.TP10 != null) {
+      const posterior = (ra.TP9 + ra.TP10) / 2;
+      el.textContent = `α ${posterior.toFixed(2)}`;
+    } else {
+      el.textContent = 'α --';
+    }
+  });
 }
 
 // === Event Handlers ===
@@ -567,6 +692,7 @@ function setupEventHandlers() {
   document.getElementById('btn-scan').addEventListener('click', scanDevices);
   document.getElementById('btn-connect').addEventListener('click', connectDevice);
   document.getElementById('btn-disconnect').addEventListener('click', disconnectDevice);
+  document.getElementById('btn-disconnect-muse').addEventListener('click', disconnectMuse);
 
   // Session controls
   document.getElementById('btn-start-session').addEventListener('click', startSession);

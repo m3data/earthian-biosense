@@ -25,6 +25,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
+# SPEC-015 ADR-015-1: reference Athena decoder; used by the app, tests and examples.
+muse-rs = { version = "0.1.0", default-features = false }
 
 [dev-dependencies]
-muse-rs = { version = "0.1.0", default-features = false }

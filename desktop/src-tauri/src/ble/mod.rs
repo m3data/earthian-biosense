@@ -4,6 +4,7 @@
 //! The Adapter must be shared across scan and connect — peripherals are
 //! tied to the adapter instance that discovered them.
 
+pub mod muse;
 pub mod parser;
 pub mod reconnect;
 pub mod registry;
@@ -59,6 +60,8 @@ pub struct DiscoveredDevice {
     pub name: String,
     pub address: String,
     pub registry_info: Option<DeviceInfo>,
+    /// SPEC-015: `"h10"` (Polar H10) or `"muse"` (Muse S Athena).
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -91,7 +94,19 @@ pub async fn create_adapter() -> Result<Adapter, String> {
         .ok_or_else(|| "No Bluetooth adapters found".to_string())
 }
 
-/// Scan for Polar H10 devices using the shared adapter.
+/// Device kind from an advertised local name: Polar H10 → `h10`,
+/// MuseS-* → `muse`, anything else → `None` (not listed).
+pub fn device_kind(name: &str) -> Option<&'static str> {
+    if name.starts_with("Polar H10") {
+        Some("h10")
+    } else if name.starts_with("MuseS-") {
+        Some("muse")
+    } else {
+        None
+    }
+}
+
+/// Scan for Polar H10 and Muse S devices using the shared adapter.
 pub async fn scan_devices(
     adapter: &Adapter,
     registry: &DeviceRegistry,
@@ -119,12 +134,18 @@ pub async fn scan_devices(
     for peripheral in peripherals {
         if let Ok(Some(props)) = peripheral.properties().await {
             if let Some(name) = &props.local_name {
-                if name.starts_with("Polar H10") {
-                    let registry_info = registry.identify(name).cloned();
+                if let Some(kind) = device_kind(name) {
+                    // Registry identification is H10-only (strap labels).
+                    let registry_info = if kind == "h10" {
+                        registry.identify(name).cloned()
+                    } else {
+                        None
+                    };
                     devices.push(DiscoveredDevice {
                         name: name.clone(),
                         address: peripheral.id().to_string(),
                         registry_info,
+                        kind: kind.to_string(),
                     });
                 }
             }
@@ -135,7 +156,7 @@ pub async fn scan_devices(
 }
 
 /// Find a specific peripheral by address on the shared adapter.
-async fn find_peripheral(adapter: &Adapter, address: &str) -> Result<Peripheral, String> {
+pub(crate) async fn find_peripheral(adapter: &Adapter, address: &str) -> Result<Peripheral, String> {
     let peripherals = adapter
         .peripherals()
         .await
@@ -399,5 +420,27 @@ mod status_tests {
         let v: serde_json::Value = serde_json::to_value(&st).unwrap();
         assert_eq!(v["reconnecting"], serde_json::json!(false));
         assert_eq!(v["connected"], serde_json::json!(false));
+    }
+
+    // SPEC-015: scan lists both device kinds; the H10 filter is unchanged.
+    #[test]
+    fn device_kind_lists_h10_and_muse_only() {
+        assert_eq!(device_kind("Polar H10 ABC123"), Some("h10"));
+        assert_eq!(device_kind("MuseS-1234"), Some("muse"));
+        assert_eq!(device_kind("Polar Verity"), None);
+        assert_eq!(device_kind("Muse-1234"), None, "classic Muse is not the Athena");
+        assert_eq!(device_kind(""), None);
+    }
+
+    #[test]
+    fn discovered_device_serialises_kind() {
+        let d = DiscoveredDevice {
+            name: "MuseS-1234".into(),
+            address: "x".into(),
+            registry_info: None,
+            kind: "muse".into(),
+        };
+        let v: serde_json::Value = serde_json::to_value(&d).unwrap();
+        assert_eq!(v["kind"], serde_json::json!("muse"));
     }
 }
