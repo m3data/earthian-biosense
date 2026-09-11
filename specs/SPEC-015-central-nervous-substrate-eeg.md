@@ -350,6 +350,31 @@ The schema is channel-agnostic (CON-015-2) so this does not block the schema, **
 - `src/session/mod.rs` — bump schema to **1.6.0** and emit the base `substrates`/`capabilities`/`host_mono_epoch` in every `session_start`; on Muse handshake emit `central_start` (with `central_meta` + `scalp_channels`); write the raw `_eeg.jsonl` side-file (batched, with `host_mono`) + fold the 1 Hz `central` block into the session log; emit `central_end` (final `seq` + count) on stop.
 - webview — a live band-power / contact panel mirroring the phase-space viz (surfacing contact quality is the on-head UX that makes reseating obvious).
 
+### v0.1 desktop build plan (2026-09-11) — the two-device state machine
+
+Scope: acceptance items 3, 4 and 6. Not in this build: Berger acceptance 5 (needs a protocol run), Muse auto-reconnect (residue), `central_phase` (reserved null), iOS.
+
+**ADR-015-7 — the 1 Hz `central` tick is its own record, not folded into the HR sample record.** `{"type":"central","ts":…,"host_mono":…,"central":{…}}`, written by the EEG task at its own 1 Hz. Rationale: the two peripherals are two clocks; folding would make the central tick depend on an H10 sample arriving, so an H10 link loss would silently drop EEG summaries — the inverse of REQ-015-3 — and would couple the two substrates at the record level (REQ-015-1). Join is by `host_mono` as already specified. The HR sample record is byte-unchanged (REQ-015-2, literal). The `central` object's key allowlist (REQ-015-1) is unchanged.
+
+**`host_mono`** = seconds since `AppState.mono_epoch: Instant` (app start). `session_start.host_mono_epoch` = the wall-clock instant at which `host_mono` was 0, computed at session start as `now − epoch.elapsed()`. Every raw batch and central tick stamps `host_mono` at notification receipt / tick close.
+
+**Muse link, independent of the H10 link.** `AppState` gains `muse_stop_tx`, `muse_task`, `muse_active`, `muse_generation` — the same shape as the H10 fields, never shared with them. `cmd_connect` and `cmd_disconnect` are untouched. New commands `cmd_connect_muse(address)` and `cmd_disconnect_muse()`; `scan_devices` also lists `MuseS-*` peripherals (a `kind: "h10" | "muse"` field on `DiscoveredDevice`). Handshake on `273e0001` write-without-response: `h`, `p1035`, `dc001`, `dc001`, 300 ms apart; data on `273e0013`. Listener forwards `(bytes, host_mono, gen)`; the EEG task decodes with muse-rs (`muse-rs` moves from dev- to normal dependency), walks `0x53` itself, classifies contact per CON-015-5 each second, computes bands + `rel_alpha`, emits `ebs:central` and, when a session is active, writes the records below. No reconnect supervisor for the Muse in v0.1: 5 s without a packet ⇒ link declared lost, `central_end` written, `ebs:muse-status {connected:false}` emitted, task exits; the user reconnects. (Residue: SPEC-009-style supervision for the Muse.)
+
+**Single writer for the central lifecycle: `SessionLogger`.** It owns `central: Option<CentralFile>` and exposes `central_start(meta, host_mono)`, `log_raw_batch(…)`, `log_central_tick(…)`, `central_end(final_seq, n_samples, host_mono)`. Rules, enforced in the logger and tested:
+- `central_start` is written when *either* a session starts while the Muse is streaming *or* the Muse handshake completes while a session is active — whichever is second. It opens `<session>_eeg.jsonl` beside the session file and records its name in `central_meta.raw_file`. `sample_rate_hz` is the nominal 256; the measured rate is a residue (`fs_measured`, not in v0.1).
+- `central_end` is written once, on the first of: session stop, Muse disconnect, Muse link lost. It closes the side-file. Session stop after `central_end` writes nothing more.
+- Raw batches and central ticks outside the `central_start`…`central_end` window are dropped silently (they belong to no session).
+- Raw records carry the contact classification of the most recently *completed* 1 s tick (`contact` keys as in the tick); the first second of a link carries `"contact": null`.
+- `session_start` always carries `schema_version: "1.6.0"`, `host_mono_epoch`, `substrates: ["autonomic"]`, `capabilities: ["hrv","motion"]` (ADR-015-5). Autonomic-only sessions gain exactly these keys.
+
+**Bands (CON-015-3).** Per scalp channel, Hann-windowed periodogram of the tick's samples, one-sided PSD in µV²/Hz (`2|X_k|² / (fs · Σw²)`), band value = mean PSD over the band's bins. `rel_alpha` = alpha power / total(1–40) power where power = mean PSD × bandwidth. A tick with `n_samples < 64` writes `bands: null`, `rel_alpha: null` (too short to resolve 1 Hz); contact is still classified.
+
+**Events.** `ebs:muse-status {name, connected, battery}` (additive; never touches `ebs:device-status`). `ebs:central {host_mono, n_samples, contact, contact_ok, rel_alpha, bands}` at 1 Hz.
+
+**Webview.** Scan panel lists both device kinds; a second connect button for the Muse; session bar gains four contact chips (TP9 AF7 AF8 TP10, coloured good/marginal/poor) and posterior `rel_alpha`. Nothing else moves.
+
+**Tests-first for this build** (all offline, in the Rust harness): TEST-3 contact classes incl. the false-null regime; TEST-4 band powers on a 10 Hz sinusoid and on white noise, half-length tick comparable; TEST-5 schema — `session_start` declaration keys, HR sample record unchanged vs 1.5.0 fixture, pre-1.6.0 session loads; TEST-6 degradation — logger with no `central_start` writes no central records and no side-file, `central_end` idempotent, ticks outside the window dropped; TEST-7 capability fold + truncation detection (`last raw seq ≠ central_end.final_seq ⇒ incomplete`); TEST-8 non-fusion allowlist enforced on the tick the logger actually writes. Live acceptance (items 3, 4, 6) on one dev-run session with both instruments — **never over the installed bundle.**
+
 **iOS (`ios/EBSCapture`, SwiftUI) — later build (specified, not built here):**
 - CoreBluetooth transport (`.withoutResponse` writes; same handshake).
 - Decode via the extracted shared Rust core (ADR-015-1) through UniFFI/XCFramework, **or** a Swift port validated against the same golden vectors. Decide when iOS starts, with captures in hand.
