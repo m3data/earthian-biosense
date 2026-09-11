@@ -11,7 +11,7 @@ delivers-schema: 1.6.0 (Rust desktop lineage; unconditional bump — see ADR-015
 
 # SPEC-015 — Central Nervous Substrate (Muse S Athena EEG)
 
-**Status:** v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
+**Status:** v0.4 — v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
 **Scope:** Add a central-nervous-system substrate to EBS by capturing EEG from a Muse S **Athena** headband, and define the schema-1.6.0 record format that carries it. The EEG substrate is represented as its own phase space **alongside** the existing autonomic (HRV) substrate — never fused at the substrate level. This spec defines the *acquisition path, the decode-sharing decision, the data tiers, and the on-disk contract*; the microstate/phase-space analysis layer that gives EEG research meaning is defined in shape here but deferred to a later build, gated on pilot data.
 
 Companion documents: `concepts/muse-s-integration-concept.md` (research frame, hypotheses, ethics — the *why*); `concepts/muse-athena-first-contact.md` (the verified BLE handshake and decode landscape — the *how*, validated live 2026-07-25).
@@ -516,6 +516,17 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 
    The first-contact **1.54×** this criterion once echoed carries the same bias and is *not* a validated target — directionally right, magnitude unverified.
 6. Muse disabled / dropped / poor-contact / dual-BLE-unstable → autonomic (H10) capture is a valid autonomic-only 1.6.0 session (base declaration only, no `central_start`, no `central` block); no crash, graceful log.
+
+**Live acceptance record — 2026-09-11 (dev run, debug build, both instruments, wearer Mat):**
+
+| item | result |
+|---|---|
+| 3 | **PASS.** Session `2026-09-11_141526`: `session_start` 1.6.0 with declaration; one `central_start` after handshake; 164 `central` ticks at 1 Hz (spacing 0.996–1.005 s, seven allowlisted keys, `central_phase` null); 163 HR samples with the 1.5.0 key set unchanged; raw side-file 5,997 batches, 41,384 samples/channel over 163.3 s (253.4 Hz); `central_end.final_seq` = last raw `seq`, counts match; raw samples inside one tick window = the tick's `n_samples` (join resolves). |
+| 4 | **PASS** (Mat, visually): four contact chips and posterior rel-alpha shown and moving in the session bar. Recorded contact over the run: AF8 71 % good, TP10 63 %, AF7 38 %, TP9 37 % (24 % poor); `contact_ok` 124/164 ticks. |
+| 6 | **PASS.** Session `2026-09-11_142315`: Muse powered off mid-session; watchdog declared the link lost 5.9 s after the last packet, `central_end` written with matching `final_seq`, autonomic capture continued (16 further HR samples until user stop), file closed cleanly. |
+| 5 | **OPEN** — Berger protocol run not yet performed. |
+
+Reading notes for consumers: (a) `seq` gaps in the raw side-file are **not** packet drops — batches are written only for packets carrying EEG, and the index counts every packet (telemetry/IMU-only packets are skipped). Truncation detection is unaffected. (b) `rel_alpha` here uses the pinned 1–40 Hz denominator (includes delta), so it reads lower than the 4–40 variant printed by the spike; both are as specified. (c) Muse reconnect within a session opens a new side-file (`_eeg_2.jsonl`, …) — Codex review 2026-09-11 caught that the first build truncated the earlier window.
 
 Once these hold on one live session, v0.1 is done. Microstate templates, the `central_phase` trajectory, cross-substrate coupling analysis, and iOS are downstream builds.
 
