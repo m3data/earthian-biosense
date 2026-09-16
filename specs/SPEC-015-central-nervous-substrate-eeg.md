@@ -447,6 +447,19 @@ Scope: make Acceptance 5 performable and checkable from the app. Three pieces; n
 
 **Acceptance 5 procedure (live, wearer Mat, TP10 reseated to `good` first).** Session running with both instruments; press "Berger run"; follow the voice; read the verdict; then run `scripts/berger_check.py` on the file and record both outputs in the live-acceptance table with the session name. A VOID is a reseat-and-repeat, not a fail.
 
+**Live Acceptance 5 record — run 1, 2026-09-16 11:02 AEST (dev run, both instruments, wearer Mat, TP10 reseated), session `2026-09-16_110209`:**
+
+| item | result |
+|---|---|
+| mechanism | **works end to end.** Six `berger_cue` field_events at 30.00 s spacing (settle 482.8 → end 612.8 host_mono); 151 ticks; contact good TP9 150/151, TP10 143/151. |
+| `scripts/berger_check.py` (file witness) | **VOID — direction.** ratio 1.2923 · delta_ratio 2.0942 · alpha_open 6.92 · alpha_closed 4.58 µV² · n 56/58 · excluded_contact 2 |
+| in-app verdict box | ▢ (Mat to confirm it showed the same) |
+| spoken cues in the Tauri webview | ▢ (Mat) |
+
+Per block (posterior mean, power = density × width): open₁ alpha 5.8 / delta 60 · closed₁ 4.8 / 23 · open₂ 9.1 / 150 · closed₂ 4.4 / 45; relative alpha 0.114 → 0.192 → 0.102 → 0.195. The eyes-open alpha means are carried by a handful of ticks at 43–58 µV² (blink/movement broadband); medians are open 3.78 vs closed 3.03. **Reading:** the relative rise is produced by theta/delta collapsing eyes-closed, not by alpha rising; absolute posterior alpha did not increase in mean or median. Same shape as 2026-07-27, now on clean contact, so contact is ruled out.
+
+*Exploratory only (not a criterion change):* rejecting individual ticks whose posterior delta exceeds 3× the eyes-closed median keeps 36/58 open and 49/58 closed ticks and flips direction (alpha 3.77 → 4.56, relative ratio 1.32) — a marginal PASS from one run. The current (b) gate compares condition **means** at 3×; this run passed it at 2.09× while mean alpha was inflated ~2× by artifact. Candidate amendment for discussion, not adopted: tick-level artifact rejection before (b)/(c). One run is not evidence for the criterion; it is evidence that the criterion's sensitivity to blink-loaded means needs a second and third run to characterise.
+
 **Choices made without asking:** 30 s blocks × 2 cycles; posterior pair only (TP9, TP10) as the spec's (a) states; contact `good` required on both posterior channels per tick; 1 s transition drop; ≥ 10 scored ticks per condition.
 
 ## Tests-first plan
@@ -588,7 +601,7 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 | 3 | **PASS.** Session `2026-09-11_141526`: `session_start` 1.6.0 with declaration; one `central_start` after handshake; 164 `central` ticks at 1 Hz (spacing 0.996–1.005 s, seven allowlisted keys, `central_phase` null); 163 HR samples with the 1.5.0 key set unchanged; raw side-file 5,997 batches, 41,384 samples/channel over 163.3 s (253.4 Hz); `central_end.final_seq` = last raw `seq`, counts match; raw samples inside one tick window = the tick's `n_samples` (join resolves). |
 | 4 | **PASS** (Mat, visually): four contact chips and posterior rel-alpha shown and moving in the session bar. Recorded contact over the run: AF8 71 % good, TP10 63 %, AF7 38 %, TP9 37 % (24 % poor); `contact_ok` 124/164 ticks. |
 | 6 | **PASS.** Session `2026-09-11_142315`: Muse powered off mid-session; watchdog declared the link lost 5.9 s after the last packet, `central_end` written with matching `final_seq`, autonomic capture continued (16 further HR samples until user stop), file closed cleanly. |
-| 5 | **OPEN** — Berger protocol run not yet performed. |
+| 5 | **RUN 1 VOID (direction), 2026-09-16 11:02** — see v0.3 record; mechanism verified, criterion not yet met. |
 
 Reading notes for consumers: (a) `seq` gaps in the raw side-file are **not** packet drops — batches are written only for packets carrying EEG, and the index counts every packet (telemetry/IMU-only packets are skipped). Truncation detection is unaffected. (b) `rel_alpha` here uses the pinned 1–40 Hz denominator (includes delta), so it reads lower than the 4–40 variant printed by the spike; both are as specified. (c) Muse reconnect within a session opens a new side-file (`_eeg_2.jsonl`, …) — Codex review 2026-09-11 caught that the first build truncated the earlier window.
 
