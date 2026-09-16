@@ -130,17 +130,32 @@ export function displayFilter(fs = FS) {
  * shares of the channel's total (so the five bars sum to one), plus the total.
  * Returns null when `bands` is null/undefined; never yields NaN.
  */
+/**
+ * Band widths in Hz, pinned to the Rust constants (eeg::BAND_*). The stored
+ * `bands` are MEAN one-sided PSD per band (µV²/Hz, see eeg::Bands), so a
+ * band's power is density × width — exactly how `eeg::rel_alpha` totals
+ * them. Dividing the raw densities by their sum would weight a 3 Hz band
+ * the same as a 17 Hz one.
+ */
+export const BAND_WIDTH_HZ = { delta: 3, theta: 4, alpha: 5, beta: 17, gamma: 10 };
+
+/**
+ * Per-channel band POWER shares of the 1–40 Hz total. Returns
+ * `{ shares, total }` with `total` in µV² (density × width, summed), or
+ * `null` when `bands` is absent. Never NaN: non-finite or negative densities
+ * count as zero, and an all-zero tick yields zero shares.
+ */
 export function bandShares(bands) {
   if (bands == null) return null;
-  const vals = {};
+  const power = {};
   let total = 0;
   for (const b of BANDS) {
-    const v = Number(bands[b]);
-    vals[b] = Number.isFinite(v) && v > 0 ? v : 0;
-    total += vals[b];
+    const d = Number(bands[b]);
+    power[b] = Number.isFinite(d) && d > 0 ? d * BAND_WIDTH_HZ[b] : 0;
+    total += power[b];
   }
   const shares = {};
-  for (const b of BANDS) shares[b] = total > 0 ? vals[b] / total : 0;
+  for (const b of BANDS) shares[b] = total > 0 ? power[b] / total : 0;
   return { shares, total };
 }
 

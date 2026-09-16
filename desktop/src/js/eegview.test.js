@@ -112,12 +112,20 @@ test('TEST-11 high-pass: +500 µV DC decays below 1 µV within 2 s; 10 Hz passes
 });
 
 // ── TEST-12 band shares ──────────────────────────────────────────────────────
-test('TEST-12 band shares: proportions sum to one; null bands → null (no NaN)', () => {
-  const r = bandShares({ delta: 1, theta: 1, alpha: 2, beta: 0, gamma: 0 });
+test('TEST-12 band shares: density × width, proportions sum to one; null bands → null (no NaN)', () => {
+  // Densities chosen so delta (3 Hz) and beta (17 Hz) expose the width weighting:
+  // equal density in delta and beta must NOT give equal shares.
+  const r = bandShares({ delta: 1, theta: 0, alpha: 0, beta: 1, gamma: 0 });
   assert.ok(r);
-  assert.equal(r.total, 4);
-  assert.deepEqual(r.shares, { delta: 0.25, theta: 0.25, alpha: 0.5, beta: 0, gamma: 0 });
-  const sum = Object.values(r.shares).reduce((a, b) => a + b, 0);
+  assert.equal(r.total, 20);                     // 1×3 + 1×17 µV²
+  assert.ok(Math.abs(r.shares.delta - 0.15) < 1e-12);
+  assert.ok(Math.abs(r.shares.beta - 0.85) < 1e-12);
+
+  // Mirrors eeg::rel_alpha: alpha share = alpha×5 / Σ(density×width).
+  const q = bandShares({ delta: 1, theta: 1, alpha: 2, beta: 0, gamma: 0 });
+  assert.equal(q.total, 17);                     // 3 + 4 + 10
+  assert.ok(Math.abs(q.shares.alpha - 10 / 17) < 1e-12);
+  const sum = Object.values(q.shares).reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(sum - 1) < 1e-9);
 
   assert.equal(bandShares(null), null);
@@ -134,9 +142,9 @@ test('TEST-12 band shares: proportions sum to one; null bands → null (no NaN)'
 
   // A missing band is treated as zero, never NaN.
   const m = bandShares({ delta: 3, alpha: 1 });
-  assert.equal(m.total, 4);
+  assert.equal(m.total, 14);                     // 3×3 + 1×5
   assert.equal(m.shares.theta, 0);
-  assert.equal(m.shares.delta, 0.75);
+  assert.ok(Math.abs(m.shares.delta - 9 / 14) < 1e-12);
   for (const v of Object.values(m.shares)) assert.ok(Number.isFinite(v));
 });
 
