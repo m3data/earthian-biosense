@@ -11,7 +11,7 @@ delivers-schema: 1.6.0 (Rust desktop lineage; unconditional bump — see ADR-015
 
 # SPEC-015 — Central Nervous Substrate (Muse S Athena EEG)
 
-**Status:** v0.6 — v0.3 Berger-run build plan 2026-09-16 (cue marks via field_event, guided run, two-path checker), in progress; v0.2 webview BUILT and live-verified 2026-09-16 (acceptance 7); v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
+**Status:** v0.6 — v0.3 Berger run BUILT 2026-09-16; **Acceptance 5 MET (run 2, marginal)** — all six v0.1 acceptance items now hold at least once; v0.2 webview BUILT and live-verified 2026-09-16 (acceptance 7); v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
 **Scope:** Add a central-nervous-system substrate to EBS by capturing EEG from a Muse S **Athena** headband, and define the schema-1.6.0 record format that carries it. The EEG substrate is represented as its own phase space **alongside** the existing autonomic (HRV) substrate — never fused at the substrate level. This spec defines the *acquisition path, the decode-sharing decision, the data tiers, and the on-disk contract*; the microstate/phase-space analysis layer that gives EEG research meaning is defined in shape here but deferred to a later build, gated on pilot data.
 
 Companion documents: `concepts/muse-s-integration-concept.md` (research frame, hypotheses, ethics — the *why*); `concepts/muse-athena-first-contact.md` (the verified BLE handshake and decode landscape — the *how*, validated live 2026-07-25).
@@ -460,6 +460,19 @@ Per block (posterior mean, power = density × width): open₁ alpha 5.8 / delta 
 
 *Exploratory only (not a criterion change):* rejecting individual ticks whose posterior delta exceeds 3× the eyes-closed median keeps 36/58 open and 49/58 closed ticks and flips direction (alpha 3.77 → 4.56, relative ratio 1.32) — a marginal PASS from one run. The current (b) gate compares condition **means** at 3×; this run passed it at 2.09× while mean alpha was inflated ~2× by artifact. Candidate amendment for discussion, not adopted: tick-level artifact rejection before (b)/(c). One run is not evidence for the criterion; it is evidence that the criterion's sensitivity to blink-loaded means needs a second and third run to characterise.
 
+**Live Acceptance 5 record — run 2, 2026-09-16 11:11 AEST (same setup, wearer asked to hold a soft gaze through the open blocks), session `2026-09-16_111117`:**
+
+| item | result |
+|---|---|
+| `scripts/berger_check.py` (file witness) | **PASS.** ratio 1.3316 · delta_ratio 1.9425 · alpha_open 4.90 · alpha_closed 5.66 µV² · n 58/58 · excluded 0/0 |
+| contact | TP9 good 168/169, TP10 good 161/169; 169 ticks |
+| spoken cues in the Tauri webview | **confirmed (Mat, after run 1)** |
+| in-app verdict box | ▢ Mat to read it on this run |
+
+Per block: open₁ alpha 5.2 / delta 4.8 · closed₁ 6.9 / 5.6 · open₂ 4.6 / 72 · closed₂ 4.4 / 34; relative alpha 0.077 → 0.112 → 0.081 → 0.136; posterior alpha medians open 2.56 / 2.48 vs closed 4.63 / 2.89. Block 1 carried unusually high beta/gamma (22 / 36 µV²) that fell through the run — a muscle-tension candidate, not analysed. Exploratory tick-level rejection (3× closed-median delta) keeps 51/58 and 56/58 and gives alpha 4.31 → 5.77, consistent with the mean.
+
+**Acceptance 5 status: MET on run 2, marginally** (ratio 1.33 against a 1.3 bar; direction agreement by 0.76 µV²). Run 1 (VOID) and run 2 (PASS) are ten minutes apart on the same head, differing mainly in blink/movement load during eyes-open — the criterion is doing what the 2026-07-27 amendment intended (refusing the contaminated run) but its margin is thin. Two consequences, not actions: (1) the 1.3× bar and the 3× mean-based gate should be revisited only after ≥3 further runs across days; (2) a Berger PASS on this device is evidence the decode and the band pipeline see physiology, not that TP9/TP10 are a good alpha site — the concept note's caution stands.
+
 **Choices made without asking:** 30 s blocks × 2 cycles; posterior pair only (TP9, TP10) as the spec's (a) states; contact `good` required on both posterior channels per tick; 1 s transition drop; ≥ 10 scored ticks per condition.
 
 ## Tests-first plan
@@ -601,7 +614,7 @@ A live **Berger acceptance** (below) is the end-to-end proof, echoing the first-
 | 3 | **PASS.** Session `2026-09-11_141526`: `session_start` 1.6.0 with declaration; one `central_start` after handshake; 164 `central` ticks at 1 Hz (spacing 0.996–1.005 s, seven allowlisted keys, `central_phase` null); 163 HR samples with the 1.5.0 key set unchanged; raw side-file 5,997 batches, 41,384 samples/channel over 163.3 s (253.4 Hz); `central_end.final_seq` = last raw `seq`, counts match; raw samples inside one tick window = the tick's `n_samples` (join resolves). |
 | 4 | **PASS** (Mat, visually): four contact chips and posterior rel-alpha shown and moving in the session bar. Recorded contact over the run: AF8 71 % good, TP10 63 %, AF7 38 %, TP9 37 % (24 % poor); `contact_ok` 124/164 ticks. |
 | 6 | **PASS.** Session `2026-09-11_142315`: Muse powered off mid-session; watchdog declared the link lost 5.9 s after the last packet, `central_end` written with matching `final_seq`, autonomic capture continued (16 further HR samples until user stop), file closed cleanly. |
-| 5 | **RUN 1 VOID (direction), 2026-09-16 11:02** — see v0.3 record; mechanism verified, criterion not yet met. |
+| 5 | **PASS on run 2, 2026-09-16 11:11** (ratio 1.33, direction +0.76 µV², delta gate 1.94×); run 1 at 11:02 VOID (direction) on the same head — see v0.3 records. Marginal; criterion margin to be characterised over further runs. |
 
 Reading notes for consumers: (a) `seq` gaps in the raw side-file are **not** packet drops — batches are written only for packets carrying EEG, and the index counts every packet (telemetry/IMU-only packets are skipped). Truncation detection is unaffected. (b) `rel_alpha` here uses the pinned 1–40 Hz denominator (includes delta), so it reads lower than the 4–40 variant printed by the spike; both are as specified. (c) Muse reconnect within a session opens a new side-file (`_eeg_2.jsonl`, …) — Codex review 2026-09-11 caught that the first build truncated the earlier window.
 
