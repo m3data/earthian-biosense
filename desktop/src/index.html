@@ -565,6 +565,17 @@
     <canvas id="modespace-canvas" width="320" height="260"></canvas>
   </div>
 
+  <!-- SPEC-015 v0.2: live EEG panel. Revealed while a Muse is connected,
+       hidden and cleared on Muse disconnect (js/eegpanel.js). -->
+  <div id="eeg-panel" class="revealable hidden">
+    <div class="eeg-caption">
+      <span class="eeg-title">central — raw EEG</span>
+      <span class="eeg-sub">four scalp channels, rolling window · under each lane, the band's share of that channel's total</span>
+    </div>
+    <canvas id="eeg-canvas" width="640" height="348"></canvas>
+    <div class="eeg-footer">display filter 1–40 Hz · ±100 µV · 4 s</div>
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

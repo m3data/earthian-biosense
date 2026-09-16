@@ -719,6 +719,55 @@ button.active {
   border-radius: 10px;
 }
 
+/* === SPEC-015 v0.2 — live EEG panel (raw strip + band row) === */
+#eeg-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 18px auto 8px;
+  max-width: 680px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.eeg-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.eeg-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(180, 160, 135, 0.7);
+}
+
+.eeg-sub {
+  font-size: 10px;
+  line-height: 1.4;
+  max-width: 480px;
+  color: rgba(150, 140, 125, 0.55);
+}
+
+#eeg-canvas {
+  display: block;
+  max-width: 100%;
+  background: radial-gradient(ellipse at 50% 60%, #14131a 0%, #0c0c11 100%);
+  border: 1px solid rgba(180, 165, 145, 0.08);
+  border-radius: 10px;
+}
+
+.eeg-footer {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(150, 140, 125, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
 /* === SPEC-015 v0.1 — Muse segment in the session bar ===
    Contact chips: one per scalp channel, class set every 1 Hz `ebs:central` tick.
    Muted palette, matching the status-dot greens/ambers/reds in index.html. */

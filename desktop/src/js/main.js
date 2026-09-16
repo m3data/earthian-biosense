@@ -10,6 +10,7 @@ import { CONFIG, getModeColor } from './config.js';
 import { createSketch2D } from './view2d.js';
 import { createSketch3D, computeDwellDensity } from './view3d.js';
 import { initModeSpace, setModeSpaceData } from './modespace.js';
+import { initEegPanel, showEegPanel, hideEegPanel, onEegRaw, onCentral } from './eegpanel.js';
 
 // === Tauri API ===
 const { invoke } = window.__TAURI__.core;
@@ -212,6 +213,7 @@ function showMuseSegment(status) {
   document.getElementById('muse-name').textContent = shortMuseName(status.name);
   document.getElementById('muse-battery').textContent =
     status.battery != null ? `${status.battery}%` : '';
+  showEegPanel();
   updateOpenScanButton();
 }
 
@@ -222,6 +224,7 @@ function hideMuseSegment() {
   document.getElementById('muse-battery').textContent = '';
   document.getElementById('rel-alpha').textContent = 'α --';
   MUSE_CHANNELS.forEach(ch => setContactChip(ch, 'poor'));
+  hideEegPanel();
   updateOpenScanButton();
 }
 
@@ -500,7 +503,9 @@ function toggleDetails() {
   state.detailsRevealed = !state.detailsRevealed;
 
   const toggle = document.getElementById('details-toggle');
-  const revealables = document.querySelectorAll('.revealable');
+  // SPEC-015 v0.2: #eeg-panel shares the revealable mechanics but is owned by
+  // the Muse link (show/hide on connect/disconnect), not by the details toggle.
+  const revealables = document.querySelectorAll('.revealable:not(#eeg-panel)');
 
   if (state.detailsRevealed) {
     toggle.textContent = 'Hide details';
@@ -673,6 +678,7 @@ function setupTauriListeners() {
     const data = event.payload;
     const contact = data.contact || {};
     MUSE_CHANNELS.forEach(ch => setContactChip(ch, contact[ch]));
+    onCentral(data);   // SPEC-015 v0.2: band row + contact fallback for the strip
 
     const ra = data.rel_alpha;
     const el = document.getElementById('rel-alpha');
@@ -683,6 +689,13 @@ function setupTauriListeners() {
     } else {
       el.textContent = 'α --';
     }
+  });
+
+  // SPEC-015 v0.2: raw EEG packets (~21/s, ~12 unfiltered µV samples per
+  // channel). Display only — the panel filters for the eye; the record is
+  // what the Rust side logged before emitting.
+  listen('ebs:eeg-raw', (event) => {
+    onEegRaw(event.payload);
   });
 }
 
@@ -795,6 +808,7 @@ setupTauriListeners();
 setupEventHandlers();
 initP5('2d');
 initModeSpace('modespace-canvas');
+initEegPanel();
 loadSessionList();
 
 log('EarthianBioSense Desktop v0.1.0');
