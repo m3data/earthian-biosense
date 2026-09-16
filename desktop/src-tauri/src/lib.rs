@@ -18,7 +18,10 @@ use ble::{
 };
 use btleplug::api::Characteristic;
 use btleplug::platform::{Adapter, Peripheral};
-use eeg::{central_tick_json, CentralTicker, SeqExtender, CH_SCALP, FS_NOMINAL, MUSE_PRESET};
+use eeg::{
+    central_tick_json, eeg_raw_json, CentralTicker, SeqExtender, CH_SCALP, FS_NOMINAL,
+    MUSE_PRESET,
+};
 use hrv::phase::PhaseTrajectory;
 use hrv::compute_hrv_metrics;
 use motion::{MotionProcessor, MotionState};
@@ -797,6 +800,15 @@ async fn run_eeg_task(
                 // first second of a link.
                 let contact = ticker.last_contact();
                 logger.log_raw_batch(&ts, host_mono, packet_seq, &eeg, contact.as_ref());
+                drop(logger);
+                // SPEC-015 v0.2: the webview gets exactly what was logged,
+                // per packet, unfiltered — after the logger lock is released.
+                handle
+                    .emit(
+                        "ebs:eeg-raw",
+                        &eeg_raw_json(host_mono, packet_seq, &eeg, contact.as_ref()),
+                    )
+                    .ok();
             }
             _ = interval.tick() => {
                 if last_packet.elapsed() >= MUSE_LINK_WATCHDOG {

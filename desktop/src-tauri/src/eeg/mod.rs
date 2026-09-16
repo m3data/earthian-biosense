@@ -533,6 +533,42 @@ pub fn central_tick_json(tick: &CentralTick) -> Value {
     })
 }
 
+/// The `ebs:eeg-raw` payload (SPEC-015 v0.2), emitted once per data packet
+/// immediately after the raw batch is logged and carrying exactly what was
+/// logged: decoded µV, unfiltered and unrounded. `samples` is inserted in
+/// `CH_SCALP` order (serialised order follows serde_json's Map); a channel
+/// absent from `samples` is an empty array. `contact` is the most recently
+/// closed tick's classification, or null before the first tick closes.
+pub fn eeg_raw_json(
+    host_mono: f64,
+    seq: u64,
+    samples: &BTreeMap<String, Vec<f64>>,
+    contact: Option<&BTreeMap<String, Contact>>,
+) -> Value {
+    let mut chans = serde_json::Map::with_capacity(CH_SCALP.len());
+    for ch in CH_SCALP {
+        let vals: Vec<Value> = samples
+            .get(ch)
+            .map(|v| v.iter().map(|&x| json!(x)).collect())
+            .unwrap_or_default();
+        chans.insert(ch.to_string(), Value::Array(vals));
+    }
+    let contact = match contact {
+        Some(c) => Value::Object(
+            c.iter()
+                .map(|(k, v)| (k.clone(), json!(v.as_str())))
+                .collect(),
+        ),
+        None => Value::Null,
+    };
+    json!({
+        "host_mono": r3(host_mono),
+        "seq": seq,
+        "samples": Value::Object(chans),
+        "contact": contact,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Consumer-side helpers — REQ-015-6, truncation detection
 // ---------------------------------------------------------------------------
@@ -884,6 +920,87 @@ mod tests {
         let r = v["rel_alpha"]["AF7"].as_f64().unwrap();
         assert_eq!(r, (r * 1000.0).round() / 1000.0);
         assert!(r > 0.9);
+    }
+
+    // ── TEST-9 (v0.2) ebs:eeg-raw payload ─────────────────────────────────
+    /// Keys of `samples` are exactly CH_SCALP. The implementation inserts
+    /// them in CH_SCALP order; serde_json's Map is a BTreeMap in this crate
+    /// (no `preserve_order` feature), so the serialised order is alphabetical
+    /// and the assertion here is set-equality. The webview reads by name.
+    fn scalp_keys(v: &Value) -> Vec<String> {
+        let mut k: Vec<String> = v["samples"].as_object().unwrap().keys().cloned().collect();
+        k.sort();
+        k
+    }
+    fn scalp_sorted() -> Vec<String> {
+        let mut k: Vec<String> = CH_SCALP.iter().map(|s| s.to_string()).collect();
+        k.sort();
+        k
+    }
+
+    #[test]
+    fn eeg_raw_json_passes_samples_through_in_scalp_order_with_contact() {
+        // Deliberately awkward values: sub-µV, negative, and a non-3dp float
+        // that must survive to the bit (no rounding, no filtering).
+        let mut samples: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+        samples.insert("TP10".into(), vec![-812.5, 0.0009765625]);
+        samples.insert("AF8".into(), vec![3.14159265358979]);
+        samples.insert("AF7".into(), vec![1.0, 2.0, 3.0]);
+        samples.insert("TP9".into(), vec![-0.1, 100.000001, 7.0e-7]);
+
+        let v = eeg_raw_json(1.5, 300, &samples, None);
+        assert_eq!(scalp_keys(&v), scalp_sorted());
+        assert_eq!(v["samples"].as_object().unwrap().len(), CH_SCALP.len());
+        for ch in CH_SCALP {
+            let out: Vec<f64> = v["samples"][ch]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_f64().unwrap())
+                .collect();
+            assert_eq!(out, samples[ch], "channel {ch} altered");
+        }
+        assert_eq!(v["seq"], json!(300u64));
+        assert_eq!(v["seq"].as_u64(), Some(300));
+        assert!(v["contact"].is_null());
+
+        // seq beyond u32 round-trips as u64 (SeqExtender is u64).
+        let big = 1u64 << 40;
+        assert_eq!(eeg_raw_json(0.0, big, &samples, None)["seq"].as_u64(), Some(big));
+
+        // Contact Some → four-key map of the Contact::as_str strings.
+        let mut contact = BTreeMap::new();
+        contact.insert("TP9".to_string(), Contact::Good);
+        contact.insert("AF7".to_string(), Contact::Marginal);
+        contact.insert("AF8".to_string(), Contact::Poor);
+        contact.insert("TP10".to_string(), Contact::Good);
+        let v = eeg_raw_json(1.5, 301, &samples, Some(&contact));
+        let c = v["contact"].as_object().unwrap();
+        assert_eq!(c.len(), 4);
+        assert_eq!(c["TP9"], json!("good"));
+        assert_eq!(c["AF7"], json!("marginal"));
+        assert_eq!(c["AF8"], json!("poor"));
+        assert_eq!(c["TP10"], json!("good"));
+
+        // A channel absent from the input is emitted as an empty array,
+        // and the key set is still exactly CH_SCALP.
+        samples.remove("AF8");
+        let v = eeg_raw_json(1.5, 302, &samples, None);
+        assert_eq!(v["samples"]["AF8"], json!([]));
+        assert_eq!(scalp_keys(&v), scalp_sorted());
+    }
+
+    #[test]
+    fn eeg_raw_json_rounds_host_mono_to_3dp_only() {
+        let samples: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+        let v = eeg_raw_json(12.2044444, 0, &samples, None);
+        assert_eq!(v["host_mono"], json!(12.204));
+        let v = eeg_raw_json(0.0005, 0, &samples, None);
+        assert_eq!(v["host_mono"], json!(0.001));
+        // All four keys present even with no samples at all.
+        for ch in CH_SCALP {
+            assert_eq!(v["samples"][ch], json!([]));
+        }
     }
 
     // ── TEST-015-7 capability fold + truncation ───────────────────────────
