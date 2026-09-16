@@ -26,7 +26,8 @@ from scripts.berger_check import (
 
 REPO = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = REPO / "tests" / "fixtures" / "berger"
-FIXTURES = ["clean_pass", "void_artifact", "void_direction", "void_too_few"]
+# Discovered, not listed: a fixture added to the directory is tested without editing this file.
+FIXTURES = sorted(p.stem for p in FIXTURE_DIR.glob("*.jsonl"))
 
 COUNT_KEYS = {"n_open", "n_closed", "excluded_contact", "excluded_no_bands"}
 

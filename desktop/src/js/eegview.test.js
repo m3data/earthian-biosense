@@ -185,7 +185,8 @@ import fs from 'node:fs';
 import { bergerVerdict, partitionTicks } from './eegview.js';
 
 const FIXTURE_DIR = new URL('../../../tests/fixtures/berger/', import.meta.url);
-const FIXTURES = ['clean_pass', 'void_artifact', 'void_direction', 'void_too_few'];
+// Discovered, not listed: a fixture added to the directory is tested without editing this file.
+const FIXTURES = fs.readdirSync(FIXTURE_DIR).filter(f => f.endsWith('.jsonl')).map(f => f.slice(0, -6)).sort();
 const COUNT_KEYS = ['n_open', 'n_closed', 'excluded_contact', 'excluded_no_bands'];
 
 function loadFixture(name) {

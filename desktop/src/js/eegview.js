@@ -224,6 +224,13 @@ export function partitionTicks(ticks, cues) {
   return out;
 }
 
+/** Band POWER (density × width) for one channel's stored bands; non-finite or
+ *  non-positive densities count as zero (as `bandShares`). */
+function bandPower(chBands, b) {
+  const d = Number(chBands && chBands[b]);
+  return Number.isFinite(d) && d > 0 ? d * BAND_WIDTH_HZ[b] : 0;
+}
+
 /** Posterior-mean band POWER (density × width) for one tick, or null. */
 function posteriorPower(bands) {
   const acc = {};
@@ -270,8 +277,18 @@ function scoreCondition(ticks, counts) {
     if (c.bands == null) { counts.excluded_no_bands++; continue; }
     const p = posteriorPower(c.bands);
     if (p == null) { counts.excluded_no_bands++; continue; }
-    const denom = p.theta + p.alpha + p.beta + p.gamma;
-    rel.push(denom > 0 ? p.alpha / denom : 0);
+    // Relative alpha is a PER-CHANNEL quantity (CON-015-3 `rel_alpha`); the
+    // posterior value is the mean of the two channels' ratios, never the
+    // ratio of pooled power. Pinned 2026-09-16 after run 2 read 1.313 in-app
+    // vs 1.3316 from the file (scripts/berger_check.py); fixture asym_channels.
+    const rels = [];
+    for (const ch of POSTERIOR) {
+      const cp = {};
+      for (const b of BANDS) cp[b] = bandPower(c.bands[ch], b);
+      const denom = cp.theta + cp.alpha + cp.beta + cp.gamma;
+      rels.push(denom > 0 ? cp.alpha / denom : 0);
+    }
+    rel.push(mean(rels));
     alpha.push(p.alpha);
     delta.push(p.delta);
   }

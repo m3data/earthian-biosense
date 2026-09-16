@@ -16,3 +16,4 @@ generator in the trace for 2026-09-16 (it is not committed; the files are the co
 | void_artifact | VOID artifact, delta_ratio 18 |
 | void_direction | VOID direction, alpha 5.0 → 2.5 |
 | void_too_few | VOID too_few_ticks, n_closed 6, excluded_contact 52 |
+| asym_channels | PASS under the PINNED definition (per-channel rel-α, then mean of the two posterior channels): ratio in `_expected`; the ratio-of-pooled-power definition gives a different number recorded in `_note` — added 2026-09-16 after run 2 disagreed in-app (1.313) vs file (1.3316) |
