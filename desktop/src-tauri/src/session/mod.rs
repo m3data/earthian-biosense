@@ -337,6 +337,19 @@ impl SessionLogger {
         self.log_field_event_at(&ts, event, note, extra);
     }
 
+    /// SPEC-015 v0.3 — a cue mark (e.g. `berger_cue` / `eyes_closed`) written
+    /// as a plain `field_event` with `host_mono` (seconds since the app's
+    /// monotonic epoch, 3 dp) so it joins the `central` ticks by the same clock
+    /// the raw side-file uses. Returns whether a session was active: with no
+    /// writer nothing is written and the caller must refuse, not pretend.
+    pub fn log_cue(&mut self, event: &str, note: &str, host_mono: f64) -> bool {
+        if self.writer.is_none() {
+            return false;
+        }
+        self.log_field_event_with(event, note, &json!({"host_mono": r3(host_mono)}));
+        true
+    }
+
     /// Like [`log_field_event_with`] but with an explicit `ts`. Events raised
     /// *from a tick* (ble_reconnect, range_egress_warning) must carry that
     /// tick's `ts`: a fresh `Local::now()` lands a few ms later than the sample
@@ -688,6 +701,34 @@ mod tests {
         assert_eq!(ev["note"], json!("watchdog"));
         assert_ne!(ev["ts"], json!("1970"));
         assert_eq!(ev["x"], json!(1));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // TEST-14 (SPEC-015 v0.3) — a Berger cue written via log_cue is a plain
+    // field_event carrying host_mono (3 dp) so it joins the central ticks by
+    // the same clock as the raw side-file; logger-owned keys still win; with
+    // no active session nothing is written and the call reports false.
+    #[test]
+    fn cue_field_event_carries_host_mono_and_refuses_without_session() {
+        let dir = tmp_dir("cue-inactive");
+        let mut logger = SessionLogger::new(&dir);
+        assert!(!logger.log_cue("berger_cue", "settle", 1.0), "no session → false");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0, "nothing written");
+        let _ = fs::remove_dir_all(&dir);
+
+        let dir = tmp_dir("cue-active");
+        let mut logger = SessionLogger::new(&dir);
+        let path = logger.start_session("solo").unwrap();
+        assert!(logger.log_cue("berger_cue", "eyes_closed", 12.3456));
+        let recs = lines(&path);
+        assert_eq!(recs.len(), 2, "header + one field event");
+        let ev = &recs[1];
+        assert_eq!(ev["type"], json!("field_event"));
+        assert_eq!(ev["event"], json!("berger_cue"));
+        assert_eq!(ev["note"], json!("eyes_closed"));
+        assert_eq!(ev["host_mono"], json!(12.346));
+        assert!(ev["ts"].is_string());
+        assert!(logger.is_active(), "a cue must not end the session");
         let _ = fs::remove_dir_all(&dir);
     }
 

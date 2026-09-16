@@ -960,6 +960,23 @@ async fn cmd_stop_session(state: State<'_, AppState>) -> Result<SessionSummary, 
     Ok(logger.stop_session())
 }
 
+/// SPEC-015 v0.3 — write a cue mark (`event`, `note`) into the active session
+/// as a `field_event` carrying `host_mono`, and return the `host_mono` written
+/// (3 dp). Err when no session is active; emits nothing.
+#[tauri::command]
+async fn cmd_log_field_event(
+    state: State<'_, AppState>,
+    event: String,
+    note: String,
+) -> Result<f64, String> {
+    let host_mono = state.mono_epoch.elapsed().as_secs_f64();
+    let mut logger = state.session_logger.lock().await;
+    if !logger.log_cue(&event, &note, host_mono) {
+        return Err("no active session".to_string());
+    }
+    Ok((host_mono * 1000.0).round() / 1000.0)
+}
+
 #[tauri::command]
 async fn cmd_list_sessions(state: State<'_, AppState>) -> Result<Vec<SessionFileInfo>, String> {
     Ok(session::list_sessions(&state.sessions_dir))
@@ -1037,6 +1054,7 @@ pub fn run() {
             cmd_disconnect_muse,
             cmd_start_session,
             cmd_stop_session,
+            cmd_log_field_event,
             cmd_list_sessions,
             cmd_load_session,
             cmd_get_registry,
