@@ -11,7 +11,7 @@ delivers-schema: 1.6.0 (Rust desktop lineage; unconditional bump — see ADR-015
 
 # SPEC-015 — Central Nervous Substrate (Muse S Athena EEG)
 
-**Status:** v0.5 — v0.2 webview (raw strip + band row) build plan 2026-09-16, in progress; v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
+**Status:** v0.5 — v0.2 webview (raw strip + band row) BUILT and live-verified 2026-09-16 (acceptance 7, see record); v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
 **Scope:** Add a central-nervous-system substrate to EBS by capturing EEG from a Muse S **Athena** headband, and define the schema-1.6.0 record format that carries it. The EEG substrate is represented as its own phase space **alongside** the existing autonomic (HRV) substrate — never fused at the substrate level. This spec defines the *acquisition path, the decode-sharing decision, the data tiers, and the on-disk contract*; the microstate/phase-space analysis layer that gives EEG research meaning is defined in shape here but deferred to a later build, gated on pilot data.
 
 Companion documents: `concepts/muse-s-integration-concept.md` (research frame, hypotheses, ethics — the *why*); `concepts/muse-athena-first-contact.md` (the verified BLE handshake and decode landscape — the *how*, validated live 2026-07-25).
@@ -404,6 +404,20 @@ Scope: the live EEG panel the §Implementation surfaces line already names ("a l
 - Run: `cargo test -p …` as before (108 + 1) and `node --test desktop/src/js/` (4 new).
 
 **Acceptance 7 (live, dev run, both instruments, wearer Mat).** With the Muse seated, four traces scroll at a steady rate with visible ~10 Hz rhythm on TP9/TP10 when eyes close; lifting one behind-ear electrode turns that lane's stroke to poor and the trace to the large-amplitude drift the contact classifier already flags; the band row updates once a second and its shares sum to 1.00 ± 0.01 per channel; the H10 heart-rate display continues unaffected throughout; on Muse power-off the panel hides and the session continues (Acceptance 6 unchanged). No new record types in either file (the side-file and the primary JSONL from this session diff-equal in shape to `2026-09-11_141526`).
+
+**Live acceptance 7 record — 2026-09-16 10:32 AEST (dev run, debug build, both instruments, wearer Mat), session `2026-09-16_103206`:**
+
+| check | result | witness |
+|---|---|---|
+| four traces scroll steadily; phase-space canvas unaffected | **PASS** | Mat, visually |
+| eyes-closed ~10 Hz on TP9/TP10 lanes | **not observable by the wearer** (eyes shut). Record instead: posterior alpha share (density × width) rose to 0.31–0.32 on both TP9 and TP10 over a five-tick run and sat ~0.03–0.10 otherwise | recorded `bands`, computed offline |
+| lifted electrode → contact class changes | **PASS** on the chip (Mat); ▢ lane stroke not separately confirmed (same datum drives both) | Mat + record (TP9 poor on 16 of 46 ticks) |
+| band row updates at 1 Hz, shares sum to 1 | shares computed from the recorded ticks sum to 1 by construction; live bar refresh ▢ not separately called out | record |
+| H10 capture continues throughout | **PASS** | 58 HR records across the 47 s window |
+| Muse power-off → panel hides, session continues | **PASS** | Mat; log `Muse link lost` 10:32:53; `central_end.final_seq` 3670 = last raw `seq` |
+| no new record types; raw rate unchanged | **PASS** | record types = {session_start, central_start, central, central_end, HR}; raw 254.2 Hz on all four channels vs 253.4 / 254.6 on 11 Sep |
+
+Contact over the run: AF7 good 32/46, AF8 good 20/46, TP9 good 21/46 (poor 16 — the lift), TP10 never good (marginal 38, poor 8). The eyes-closed item needs a second person or a replay of the side-file to be checked by eye; the recorded alpha rise is the stand-in.
 
 **Residue named up front.** The webview receives ~256 × 4 numbers/s over the Tauri IPC; if the phase-space canvas stutters, the fix is batching two packets per emit, not dropping samples. The scale bar is fixed at ±100 µV because eyes-closed posterior alpha sits at 2–60 µV RMS (REQ-015-5b); if AF7/AF8 blink artefacts routinely clip, that is information, not a bug.
 
