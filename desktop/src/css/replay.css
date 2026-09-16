@@ -768,6 +768,57 @@ button.active {
   font-variant-numeric: tabular-nums;
 }
 
+/* === SPEC-015 v0.3 — Berger run controls + verdict, inside #eeg-panel ===
+   Verdict text shares one muted colour for PASS, FAIL and VOID: the verdict
+   is a measurement read-out, not a judgement (viz/DESIGN_PRINCIPLES.md). */
+.berger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 640px;
+  margin-top: 4px;
+}
+
+.berger-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.berger-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.berger-status {
+  font-size: 11px;
+  color: rgba(170, 155, 135, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.berger-verdict {
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+  color: rgba(180, 165, 145, 0.8);
+  font-variant-numeric: tabular-nums;
+  padding: 8px 14px;
+  border: 1px solid rgba(180, 165, 145, 0.12);
+  border-radius: 8px;
+  background: rgba(180, 165, 145, 0.04);
+}
+
+.berger-verdict > div:first-child {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(180, 160, 135, 0.9);
+}
+
 /* === SPEC-015 v0.1 — Muse segment in the session bar ===
    Contact chips: one per scalp channel, class set every 1 Hz `ebs:central` tick.
    Muted palette, matching the status-dot greens/ambers/reds in index.html. */

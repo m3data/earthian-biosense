@@ -175,3 +175,99 @@ test('TEST-13 lane geometry: ±100 → edges, 0 → centre, ±300 clips inside t
   assert.equal(laneY(50, top, h, 50), top);
   assert.equal(laneY(NaN, top, h), top + h / 2);
 });
+
+// ── TEST-15 Berger verdict ───────────────────────────────────────────────────
+// The four fixtures in tests/fixtures/berger/ are the contract shared with
+// scripts/berger_check.py (TEST-16). Each header's `_expected` is what
+// bergerVerdict must return: numeric fields to 3 dp, `reason` and `verdict`
+// exactly, counts exactly; fields absent from `_expected` are unconstrained.
+import fs from 'node:fs';
+import { bergerVerdict, partitionTicks } from './eegview.js';
+
+const FIXTURE_DIR = new URL('../../../tests/fixtures/berger/', import.meta.url);
+const FIXTURES = ['clean_pass', 'void_artifact', 'void_direction', 'void_too_few'];
+const COUNT_KEYS = ['n_open', 'n_closed', 'excluded_contact', 'excluded_no_bands'];
+
+function loadFixture(name) {
+  const text = fs.readFileSync(new URL(`${name}.jsonl`, FIXTURE_DIR), 'utf8');
+  const records = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  const header = records.find(r => r.type === 'session_start');
+  const ticks = records.filter(r => r.type === 'central');
+  const cues = records.filter(r => r.type === 'field_event' && r.event === 'berger_cue');
+  return { expected: header._expected, ticks, cues };
+}
+
+test('TEST-15 bergerVerdict matches _expected on the four shared fixtures', () => {
+  for (const name of FIXTURES) {
+    const { expected, ticks, cues } = loadFixture(name);
+    const v = bergerVerdict(ticks, cues);
+    assert.deepEqual(
+      Object.keys(v).sort(),
+      ['verdict', 'reason', 'ratio', 'delta_ratio', 'alpha_open', 'alpha_closed',
+        'n_open', 'n_closed', 'excluded_contact', 'excluded_no_bands'].sort(),
+      `${name}: output keys`
+    );
+    for (const [k, want] of Object.entries(expected)) {
+      const got = v[k];
+      if (k === 'verdict' || k === 'reason') {
+        assert.equal(got, want, `${name}: ${k}`);
+      } else if (COUNT_KEYS.includes(k)) {
+        assert.equal(got, want, `${name}: ${k}`);
+      } else if (want === null) {
+        assert.equal(got, null, `${name}: ${k}`);
+      } else {
+        assert.ok(typeof got === 'number' && Math.abs(got - want) < 5e-4,
+          `${name}: ${k} got ${got}, want ${want} (3 dp)`);
+      }
+    }
+  }
+});
+
+test('TEST-15 windowing: the transition second is dropped; +1.0 s is scored; settle/end never scored', () => {
+  const cues = [
+    { host_mono: 0, note: 'settle' },
+    { host_mono: 10, note: 'eyes_open' },
+    { host_mono: 40, note: 'eyes_closed' },
+    { host_mono: 70, note: 'end' },
+  ];
+  const tick = (t) => ({ host_mono: t, central: { host_mono: t, contact: null, bands: null } });
+  const ticks = [tick(5), tick(10.0), tick(10.5), tick(11.0), tick(11.5), tick(40), tick(40.999), tick(41.0), tick(41.5), tick(70), tick(75)];
+  const p = partitionTicks(ticks, cues);
+  assert.deepEqual(p.eyes_open.map(t => t.host_mono), [11.0, 11.5]);
+  assert.deepEqual(p.eyes_closed.map(t => t.host_mono), [41.0, 41.5]);
+
+  // Through the full verdict: a synthetic run with enough ticks; n_open counts
+  // exactly the ticks at or after cue + 1.0 s.
+  const good = { TP9: 'good', AF7: 'good', AF8: 'good', TP10: 'good' };
+  const b = { delta: 1, theta: 1, alpha: 1, beta: 1, gamma: 1 };
+  const bands = { TP9: b, AF7: b, AF8: b, TP10: b };
+  // Closed alpha density 1.2 vs open 1.0: rel 6/37 ÷ 5/36 = 1.168 < 1.3 → FAIL,
+  // direction satisfied (6 > 5), delta ratio 1.
+  const bc = { ...b, alpha: 1.2 };
+  const bandsClosed = { TP9: bc, AF7: bc, AF8: bc, TP10: bc };
+  const full = [];
+  for (let t = 0; t <= 70; t += 0.5) {
+    full.push({ host_mono: t, central: { host_mono: t, contact: good, bands: t >= 40 ? bandsClosed : bands } });
+  }
+  const v = bergerVerdict(full, cues);
+  assert.equal(v.n_open, 58);     // 11.0 … 39.5 at 0.5 s
+  assert.equal(v.n_closed, 58);   // 41.0 … 69.5 at 0.5 s
+  assert.equal(v.verdict, 'FAIL');
+  assert.equal(v.reason, null);
+  assert.ok(Math.abs(v.ratio - (6 / 37) / (5 / 36)) < 1e-4);
+  assert.equal(v.alpha_open, 5);
+  assert.equal(v.alpha_closed, 6);
+
+  // Identical conditions: alpha not higher closed → VOID direction (equal is not higher).
+  const same = full.map(t => ({ ...t, central: { ...t.central, bands } }));
+  const s = bergerVerdict(same, cues);
+  assert.equal(s.verdict, 'VOID');
+  assert.equal(s.reason, 'direction');
+
+  // Too few: 9 ticks in one condition → VOID too_few_ticks.
+  const few = full.filter(t => !(t.host_mono >= 41 && t.host_mono < 65.5));
+  const w = bergerVerdict(few, cues);
+  assert.equal(w.verdict, 'VOID');
+  assert.equal(w.reason, 'too_few_ticks');
+  assert.equal(w.n_closed, 9);
+});

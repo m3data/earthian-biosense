@@ -172,3 +172,161 @@ export function laneY(uv, laneTop, laneHeight, scaleUv = SCALE_UV) {
   const y = laneTop + ((1 - v / scaleUv) / 2) * laneHeight;
   return Math.min(laneTop + laneHeight, Math.max(laneTop, y));
 }
+
+// ── Berger verdict (SPEC-015 v0.3, Acceptance 5) ─────────────────────────────
+// One definition, two computation paths: this function and
+// scripts/berger_check.py `berger_verdict` must agree on the fixtures in
+// tests/fixtures/berger/. The file is the witness; this is the in-app read-out.
+
+export const BERGER_MIN_TICKS = 10;      // scored ticks per condition
+export const BERGER_TRANSITION_S = 1.0;  // seconds after any cue that are dropped
+export const BERGER_PASS_RATIO = 1.3;    // (a) closed/open relative alpha
+export const BERGER_ARTIFACT_RATIO = 3;  // (b) open/closed delta power ⇒ VOID
+const POSTERIOR = ['TP9', 'TP10'];
+const SCORED = ['eyes_open', 'eyes_closed'];
+
+function tickTime(t) {
+  const top = Number(t && t.host_mono);
+  if (Number.isFinite(top)) return top;
+  const inner = Number(t && t.central && t.central.host_mono);
+  return Number.isFinite(inner) ? inner : NaN;
+}
+
+/**
+ * Assign each tick to the condition whose cue precedes it, dropping the
+ * transition second after ANY cue (0 ≤ tick − cue < 1.0: a tick stamped at
+ * the cue is dropped, one at +1.0 s is scored). `settle` and `end` ticks are
+ * never scored. Ticks may be file-shaped `{host_mono, central:{…}}` or live
+ * payloads wrapped the same way. Cues are `{host_mono, note}`.
+ * Returns `{ eyes_open: [tick…], eyes_closed: [tick…] }`, each in time order.
+ */
+export function partitionTicks(ticks, cues) {
+  const cs = (cues || [])
+    .map(c => ({ t: Number(c && c.host_mono), note: c && c.note }))
+    .filter(c => Number.isFinite(c.t))
+    .sort((a, b) => a.t - b.t);
+  const out = { eyes_open: [], eyes_closed: [] };
+  const ordered = (ticks || [])
+    .map(t => ({ t: tickTime(t), tick: t }))
+    .filter(x => Number.isFinite(x.t))
+    .sort((a, b) => a.t - b.t);
+  for (const { t, tick } of ordered) {
+    let cond = null;
+    let inTransition = false;
+    for (const c of cs) {
+      if (c.t <= t) cond = c.note;
+      const d = t - c.t;
+      if (d >= 0 && d < BERGER_TRANSITION_S) inTransition = true;
+    }
+    if (inTransition || !SCORED.includes(cond)) continue;
+    out[cond].push(tick);
+  }
+  return out;
+}
+
+/** Posterior-mean band POWER (density × width) for one tick, or null. */
+function posteriorPower(bands) {
+  const acc = {};
+  for (const b of BANDS) acc[b] = 0;
+  for (const ch of POSTERIOR) {
+    const chBands = bands[ch];
+    if (chBands == null) return null;
+    for (const b of BANDS) {
+      const d = Number(chBands[b]);
+      acc[b] += (Number.isFinite(d) && d > 0 ? d * BAND_WIDTH_HZ[b] : 0) / POSTERIOR.length;
+    }
+  }
+  return acc;
+}
+
+function contactGood(contact) {
+  return !!contact && POSTERIOR.every(ch => contact[ch] === 'good');
+}
+
+function mean(xs) {
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+
+function round4(x) {
+  return x == null || !Number.isFinite(x) ? null : Math.round(x * 1e4) / 1e4;
+}
+
+function safeDiv(a, b) {
+  return a == null || b == null || !(b > 0) ? null : a / b;
+}
+
+/**
+ * Score one condition's ticks. Contact must be `good` on both posterior
+ * channels (else `excluded_contact`); `bands` must be present (else
+ * `excluded_no_bands`). Returns per-condition means over scored ticks.
+ */
+function scoreCondition(ticks, counts) {
+  const rel = [];
+  const alpha = [];
+  const delta = [];
+  for (const tick of ticks) {
+    const c = (tick && tick.central) || tick || {};
+    if (!contactGood(c.contact)) { counts.excluded_contact++; continue; }
+    if (c.bands == null) { counts.excluded_no_bands++; continue; }
+    const p = posteriorPower(c.bands);
+    if (p == null) { counts.excluded_no_bands++; continue; }
+    const denom = p.theta + p.alpha + p.beta + p.gamma;
+    rel.push(denom > 0 ? p.alpha / denom : 0);
+    alpha.push(p.alpha);
+    delta.push(p.delta);
+  }
+  return { n: rel.length, rel: mean(rel), alpha: mean(alpha), delta: mean(delta) };
+}
+
+/**
+ * Acceptance 5 checker. `ticks`: `central` records (file shape
+ * `{host_mono, central:{contact, bands, …}}`); `cues`: `berger_cue`
+ * field_events `{host_mono, note}`. Pure; no DOM.
+ *
+ *   (a) ratio  = mean closed rel-alpha ÷ mean open rel-alpha; PASS ≥ 1.3
+ *   (b) artifact: mean open delta ÷ mean closed delta > 3 ⇒ VOID
+ *   (c) direction: mean absolute alpha must be higher closed than open ⇒ else VOID
+ *
+ * Precedence: too_few_ticks → artifact → direction → PASS/FAIL. Numbers are
+ * rounded to 4 dp; null where not computable.
+ */
+export function bergerVerdict(ticks, cues) {
+  const part = partitionTicks(ticks, cues);
+  const counts = { excluded_contact: 0, excluded_no_bands: 0 };
+  const open = scoreCondition(part.eyes_open, counts);
+  const closed = scoreCondition(part.eyes_closed, counts);
+
+  const ratio = safeDiv(closed.rel, open.rel);
+  const deltaRatio = safeDiv(open.delta, closed.delta);
+
+  let verdict;
+  let reason = null;
+  if (open.n < BERGER_MIN_TICKS || closed.n < BERGER_MIN_TICKS) {
+    verdict = 'VOID';
+    reason = 'too_few_ticks';
+  } else if (deltaRatio == null || deltaRatio > BERGER_ARTIFACT_RATIO) {
+    verdict = 'VOID';
+    reason = 'artifact';
+  } else if (open.alpha == null || closed.alpha == null || !(closed.alpha > open.alpha)) {
+    verdict = 'VOID';
+    reason = 'direction';
+  } else if (ratio == null) {
+    verdict = 'VOID';
+    reason = 'direction';
+  } else {
+    verdict = ratio >= BERGER_PASS_RATIO ? 'PASS' : 'FAIL';
+  }
+
+  return {
+    verdict,
+    reason,
+    ratio: round4(ratio),
+    delta_ratio: round4(deltaRatio),
+    alpha_open: round4(open.alpha),
+    alpha_closed: round4(closed.alpha),
+    n_open: open.n,
+    n_closed: closed.n,
+    excluded_contact: counts.excluded_contact,
+    excluded_no_bands: counts.excluded_no_bands,
+  };
+}

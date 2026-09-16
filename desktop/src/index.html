@@ -574,6 +574,15 @@
     </div>
     <canvas id="eeg-canvas" width="640" height="348"></canvas>
     <div class="eeg-footer">display filter 1–40 Hz · ±100 µV · 4 s</div>
+    <!-- SPEC-015 v0.3 — Berger run (Acceptance 5). Cues are spoken; this text is for a second person. -->
+    <div class="berger">
+      <div class="berger-controls">
+        <button id="berger-run" disabled>Berger run</button>
+        <button id="berger-stop" class="hidden">Stop</button>
+        <span id="berger-status" class="berger-status">needs a session and the Muse</span>
+      </div>
+      <div id="berger-verdict" class="berger-verdict hidden"></div>
+    </div>
   </div>
 
   <script type="module" src="js/main.js"></script>

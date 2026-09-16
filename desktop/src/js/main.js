@@ -11,6 +11,7 @@ import { createSketch2D } from './view2d.js';
 import { createSketch3D, computeDwellDensity } from './view3d.js';
 import { initModeSpace, setModeSpaceData } from './modespace.js';
 import { initEegPanel, showEegPanel, hideEegPanel, onEegRaw, onCentral } from './eegpanel.js';
+import { initBerger, setBergerEnabled, onCentralForBerger } from './berger.js';
 
 // === Tauri API ===
 const { invoke } = window.__TAURI__.core;
@@ -215,6 +216,7 @@ function showMuseSegment(status) {
     status.battery != null ? `${status.battery}%` : '';
   showEegPanel();
   updateOpenScanButton();
+  setBergerEnabled(state.isSessionActive, state.isMuseConnected);   // SPEC-015 v0.3
 }
 
 function hideMuseSegment() {
@@ -226,6 +228,7 @@ function hideMuseSegment() {
   MUSE_CHANNELS.forEach(ch => setContactChip(ch, 'poor'));
   hideEegPanel();
   updateOpenScanButton();
+  setBergerEnabled(state.isSessionActive, state.isMuseConnected);   // SPEC-015 v0.3
 }
 
 // "MuseS-7A3B" -> "7A3B"; anything else passes through.
@@ -291,6 +294,7 @@ async function startSession() {
     }
 
     log(`Session started (${sessionType})`);
+    setBergerEnabled(state.isSessionActive, state.isMuseConnected);   // SPEC-015 v0.3
   } catch (e) {
     // Session commands may not be implemented yet — fall back to live HR display
     log(`Session start: ${e} — using live HR display mode`);
@@ -299,6 +303,7 @@ async function startSession() {
     document.getElementById('btn-start-session').classList.add('hidden');
     document.getElementById('btn-stop-session').classList.remove('hidden');
     document.getElementById('session-name').textContent = 'live (HR only)';
+    setBergerEnabled(state.isSessionActive, state.isMuseConnected);   // SPEC-015 v0.3
   }
 }
 
@@ -314,6 +319,7 @@ async function stopSession() {
   state.isLive = false;
   document.getElementById('btn-start-session').classList.remove('hidden');
   document.getElementById('btn-stop-session').classList.add('hidden');
+  setBergerEnabled(state.isSessionActive, state.isMuseConnected);   // SPEC-015 v0.3
 }
 
 // === Session Loading (File or Tauri Command) ===
@@ -679,6 +685,7 @@ function setupTauriListeners() {
     const contact = data.contact || {};
     MUSE_CHANNELS.forEach(ch => setContactChip(ch, contact[ch]));
     onCentral(data);   // SPEC-015 v0.2: band row + contact fallback for the strip
+    onCentralForBerger(data);   // SPEC-015 v0.3: collected only during a Berger run
 
     const ra = data.rel_alpha;
     const el = document.getElementById('rel-alpha');
@@ -809,6 +816,7 @@ setupEventHandlers();
 initP5('2d');
 initModeSpace('modespace-canvas');
 initEegPanel();
+initBerger({ invoke });   // SPEC-015 v0.3: Berger run controls inside #eeg-panel
 loadSessionList();
 
 log('EarthianBioSense Desktop v0.1.0');
