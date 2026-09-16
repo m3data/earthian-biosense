@@ -11,7 +11,7 @@ delivers-schema: 1.6.0 (Rust desktop lineage; unconditional bump — see ADR-015
 
 # SPEC-015 — Central Nervous Substrate (Muse S Athena EEG)
 
-**Status:** v0.5 — v0.2 webview (raw strip + band row) BUILT and live-verified 2026-09-16 (acceptance 7, see record); v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
+**Status:** v0.6 — v0.3 Berger-run build plan 2026-09-16 (cue marks via field_event, guided run, two-path checker), in progress; v0.2 webview BUILT and live-verified 2026-09-16 (acceptance 7); v0.1 desktop build IMPLEMENTED and live-verified 2026-09-11 (acceptance 3, 4, 6 pass; 5 open) on branch `spec-015-eeg`. Was: v0.3 draft — interface contract, ahead of implementation. Clean-context adversarial review run 2026-07-25 (findings folded in, §Clean-context review). **Amended 2026-07-27 after the first live capture falsified REQ-015-5's mechanism** — see §Amendment record. (USDD gate: SPEC + review before build.)
 **Scope:** Add a central-nervous-system substrate to EBS by capturing EEG from a Muse S **Athena** headband, and define the schema-1.6.0 record format that carries it. The EEG substrate is represented as its own phase space **alongside** the existing autonomic (HRV) substrate — never fused at the substrate level. This spec defines the *acquisition path, the decode-sharing decision, the data tiers, and the on-disk contract*; the microstate/phase-space analysis layer that gives EEG research meaning is defined in shape here but deferred to a later build, gated on pilot data.
 
 Companion documents: `concepts/muse-s-integration-concept.md` (research frame, hypotheses, ethics — the *why*); `concepts/muse-athena-first-contact.md` (the verified BLE handshake and decode landscape — the *how*, validated live 2026-07-25).
@@ -420,6 +420,33 @@ Scope: the live EEG panel the §Implementation surfaces line already names ("a l
 Contact over the run: AF7 good 32/46, AF8 good 20/46, TP9 good 21/46 (poor 16 — the lift), TP10 never good (marginal 38, poor 8). The eyes-closed item needs a second person or a replay of the side-file to be checked by eye; the recorded alpha rise is the stand-in.
 
 **Residue named up front.** The webview receives ~256 × 4 numbers/s over the Tauri IPC; if the phase-space canvas stutters, the fix is batching two packets per emit, not dropping samples. The scale bar is fixed at ±100 µV because eyes-closed posterior alpha sits at 2–60 µV RMS (REQ-015-5b); if AF7/AF8 blink artefacts routinely clip, that is information, not a bug.
+
+### v0.3 build plan (2026-09-16) — the Berger protocol run (Acceptance 5)
+
+Scope: make Acceptance 5 performable and checkable from the app. Three pieces; no new record type, no schema bump.
+
+**1. Cue marks — `cmd_log_field_event(event, note)`.** A Tauri command that writes a `field_event` (the existing SPEC-009 record: `type`, `ts`, `event`, `note`) through `SessionLogger::log_field_event_with`, adding `host_mono` (seconds since `AppState::mono_epoch`, 3 dp) in the extras so the cue joins the `central` ticks by the same clock the raw side-file uses. Returns the `host_mono` written. Refused (Err) when no session is active. The Berger run writes `event = "berger_cue"`, `note ∈ {"settle", "eyes_open", "eyes_closed", "end"}`. Any other caller may use it later; nothing else in this build does.
+
+**2. Guided run — `desktop/src/js/berger.js`.** A "Berger run" button in `#eeg-panel`, enabled only while a session is active AND a Muse is connected. Schedule (fixed, v0.3): settle 10 s → eyes_open 30 s → eyes_closed 30 s → eyes_open 30 s → eyes_closed 30 s → end. Each transition: spoken cue via `window.speechSynthesis` ("eyes open" / "eyes closed" / "done"), the cue logged through `cmd_log_field_event` **before** the utterance starts, and the current condition shown on the panel. A "Stop" cancels, logs `end`, and yields no verdict. The wearer's eyes are shut for half the run, so speech is the interface; the panel text is for a second person.
+
+**3. Checker, two computation paths, one definition.**
+- Pure function `bergerVerdict(ticks, cues)` in `desktop/src/js/eegview.js` (no DOM) and `berger_verdict(ticks, cues)` in `scripts/berger_check.py`, implementing Acceptance 5 (a)(b)(c) identically:
+  - **Windows.** A tick belongs to the condition whose cue precedes it; ticks within 1.0 s after any cue are dropped from both conditions (the transition second); `settle` and `end` ticks are never scored. Ticks with `contact` ≠ `good` on **either** posterior channel (TP9, TP10) are excluded and counted as `excluded_contact`. Ticks with `bands == null` are excluded and counted.
+  - **Power** = stored mean PSD × bandwidth per band (3/4/5/17/10 Hz), as `eeg::rel_alpha` and `bandShares` do.
+  - **(a) ratio** = mean over eyes_closed ticks of posterior-mean `alpha / (theta+alpha+beta+gamma)` ÷ the same over eyes_open ticks; PASS needs ≥ 1.3.
+  - **(b) artifact gate**: mean eyes_open `delta` power (posterior mean) ÷ mean eyes_closed `delta` power > 3 ⇒ **VOID**.
+  - **(c) direction**: mean absolute posterior `alpha` power must be higher eyes_closed than eyes_open; otherwise **VOID**.
+  - Verdict ∈ {PASS, FAIL, VOID}; VOID takes precedence over PASS/FAIL. Minimum 10 scored ticks per condition, else VOID with reason `too_few_ticks`. Output object: `{ verdict, reason, ratio, delta_ratio, alpha_open, alpha_closed, n_open, n_closed, excluded_contact, excluded_no_bands }`.
+- In-app: at `end`, the panel shows the verdict and the numbers from the ticks it received live. Offline: `python3 scripts/berger_check.py <session.jsonl>` prints the same object from the file. **The file is the witness**; the in-app read-out is convenience. If the two disagree on a real run, that is a finding, not a tie to break.
+
+**Tests-first for this build.**
+- Rust **TEST-14** (`session/mod.rs`): a `field_event` written via the new path carries `event`, `note`, `host_mono` (3 dp) and the logger-owned keys win over extras; with no active session the command returns Err and writes nothing.
+- JS **TEST-15** (`eegview.test.js`) and Python **TEST-16** (`tests/test_berger_check.py`), the **same four fixtures** encoded in both languages: (i) clean Berger — closed alpha 3× open, deltas equal → PASS with ratio ≈ 3; (ii) the 2026-07-27 shape — open delta 18× closed, relative ratio 9.75 → VOID `artifact`; (iii) relative up but absolute alpha down → VOID `direction`; (iv) 30 ticks with only 6 good-contact in one condition → VOID `too_few_ticks` with `excluded_contact` counted. Plus a windowing case: a tick 0.5 s after a cue is dropped, one 1.5 s after is scored.
+- Run: `cargo test` (110 + 1), `node --test desktop/src/js/` (5 + 1), `pytest tests/test_berger_check.py` (4–5).
+
+**Acceptance 5 procedure (live, wearer Mat, TP10 reseated to `good` first).** Session running with both instruments; press "Berger run"; follow the voice; read the verdict; then run `scripts/berger_check.py` on the file and record both outputs in the live-acceptance table with the session name. A VOID is a reseat-and-repeat, not a fail.
+
+**Choices made without asking:** 30 s blocks × 2 cycles; posterior pair only (TP9, TP10) as the spec's (a) states; contact `good` required on both posterior channels per tick; 1 s transition drop; ≥ 10 scored ticks per condition.
 
 ## Tests-first plan
 
