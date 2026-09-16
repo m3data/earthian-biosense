@@ -208,12 +208,12 @@ def berger_verdict(ticks, cues):
         "excluded_contact": excluded_contact, "excluded_no_bands": excluded_no_bands,
     }
 
-    if n_open < MIN_TICKS or n_closed < MIN_TICKS:
-        out["verdict"], out["reason"] = "VOID", "too_few_ticks"
-        return out
-
+    # Numbers are reported whenever a mean is computable (n > 0), even under
+    # VOID: the verdict withholds meaning, not arithmetic. Mirrors bergerVerdict
+    # in desktop/src/js/eegview.js so the two witnesses print the same object.
     def mean_of(cond, key):
-        return statistics.fmean(f[key] for f in scored[cond])
+        vals = [f[key] for f in scored[cond]]
+        return statistics.fmean(vals) if vals else None
 
     rel_open = mean_of("eyes_open", "rel_alpha")
     rel_closed = mean_of("eyes_closed", "rel_alpha")
@@ -222,13 +222,17 @@ def berger_verdict(ticks, cues):
     alpha_open = mean_of("eyes_open", "alpha")
     alpha_closed = mean_of("eyes_closed", "alpha")
 
-    ratio = rel_closed / rel_open if rel_open > 0 else None
-    delta_ratio = delta_open / delta_closed if delta_closed > 0 else None
+    ratio = rel_closed / rel_open if rel_open and rel_closed is not None else None
+    delta_ratio = delta_open / delta_closed if delta_closed and delta_open is not None else None
 
     out["ratio"] = _r4(ratio)
     out["delta_ratio"] = _r4(delta_ratio)
     out["alpha_open"] = _r4(alpha_open)
     out["alpha_closed"] = _r4(alpha_closed)
+
+    if n_open < MIN_TICKS or n_closed < MIN_TICKS:
+        out["verdict"], out["reason"] = "VOID", "too_few_ticks"
+        return out
 
     # (b) artifact gate
     if delta_ratio is None or delta_ratio > ARTIFACT_DELTA_RATIO:

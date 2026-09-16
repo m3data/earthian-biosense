@@ -73,7 +73,10 @@ class TestFixtureVerdicts:
         out = berger_verdict(ticks, cues)
         assert out["verdict"] == "VOID"
         assert out["reason"] == "too_few_ticks"
-        assert out["ratio"] is None
+        # Computable numbers are still reported under VOID (same as the JS
+        # witness); only the verdict is withheld.
+        assert out["ratio"] == 1.69
+        assert out["n_closed"] == 6
 
 
 # =============================================================================
